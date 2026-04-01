@@ -26,6 +26,7 @@ import type { AutoCorrectionData } from "~/hooks/useAddressAutoSelection";
 import type { AddressSelectionEntry } from "~/stores/addressSelectionStore";
 import type { SearchHistoryEntry } from "~/stores/searchHistoryStore";
 import type { HistoryItem, LocationIntent, Suggestion } from "~/stores/types";
+import type { ManualAutocompleteState } from "./ManualSearchForm";
 
 interface AddressFinderUIProps {
 	// Handlers from the brain component
@@ -37,6 +38,9 @@ interface AddressFinderUIProps {
 	handleRecallPreviousSearch: (entry: SearchHistoryEntry) => void;
 	handleRecallConfirmedSelection: (entry: AddressSelectionEntry) => void;
 	handleManualTyping: (query: string) => void;
+	handleManualAutocompleteStateChange?: (
+		state: ManualAutocompleteState,
+	) => void;
 	handleHideOptions: () => void;
 
 	// State from brain (no direct store imports)
@@ -78,6 +82,7 @@ export function AddressFinderUI({
 	handleRecallPreviousSearch,
 	handleRecallConfirmedSelection,
 	handleManualTyping,
+	handleManualAutocompleteStateChange,
 	handleHideOptions,
 	state,
 	shouldShowSuggestions,
@@ -266,6 +271,9 @@ export function AddressFinderUI({
 								onSelect={handleSelectResult}
 								disabled={isValidating}
 								onTyping={handleManualTyping}
+								onAutocompleteStateChange={
+									handleManualAutocompleteStateChange
+								}
 							/>
 						</div>
 					) : (

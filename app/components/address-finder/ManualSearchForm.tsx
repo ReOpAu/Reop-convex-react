@@ -35,10 +35,18 @@ interface ManualSearchFormProps {
 	onSelect: (suggestion: Suggestion) => void;
 	disabled?: boolean;
 	onTyping?: (query: string) => void;
+	onAutocompleteStateChange?: (state: ManualAutocompleteState) => void;
+}
+
+export interface ManualAutocompleteState {
+	query: string;
+	suggestions: Suggestion[];
+	isLoading: boolean;
+	error: string | null;
 }
 
 export const ManualSearchForm: React.FC<ManualSearchFormProps> = React.memo(
-	({ onSelect, disabled = false, onTyping }) => {
+	({ onSelect, disabled = false, onTyping, onAutocompleteStateChange }) => {
 		const [inputValue, setInputValue] = useState("");
 		const [selectedIndex, setSelectedIndex] = useState(-1);
 		const [showSuggestions, setShowSuggestions] = useState(false);
@@ -122,6 +130,33 @@ export const ManualSearchForm: React.FC<ManualSearchFormProps> = React.memo(
 			staleTime: 5 * 60 * 1000,
 			retry: 1,
 		});
+
+		useEffect(() => {
+			if (!onAutocompleteStateChange) return;
+
+			const shouldClearState =
+				isAddressSelected || inputValue.trim().length < MIN_SEARCH_CHARS;
+
+			onAutocompleteStateChange({
+				query: inputValue,
+				suggestions: shouldClearState ? [] : autocompleteSuggestions,
+				isLoading: shouldClearState ? false : isLoading,
+				error:
+					shouldClearState || !isError
+						? null
+						: error instanceof Error
+							? error.message
+							: "Failed to load suggestions",
+			});
+		}, [
+			autocompleteSuggestions,
+			error,
+			inputValue,
+			isAddressSelected,
+			isError,
+			isLoading,
+			onAutocompleteStateChange,
+		]);
 
 		useEffect(() => {
 			const handleClickOutside = (event: MouseEvent) => {

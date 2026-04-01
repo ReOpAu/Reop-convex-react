@@ -28,6 +28,7 @@ import {
 	classifyIntent,
 	classifySelectedResult,
 } from "~/utils/addressFinderUtils";
+import type { ManualAutocompleteState } from "./ManualSearchForm";
 
 // Constants
 const DEBOUNCE_DELAY = 300;
@@ -46,6 +47,9 @@ export interface AddressFinderBrainHandlers {
 	handleRecallPreviousSearch: (entry: SearchHistoryEntry) => void;
 	handleRecallConfirmedSelection: (entry: AddressSelectionEntry) => void;
 	handleManualTyping: (query: string) => void;
+	handleManualAutocompleteStateChange: (
+		state: ManualAutocompleteState,
+	) => void;
 	handleHideOptions: () => void;
 
 	// State from stores (exposed to UI so UI doesn't import stores directly)
@@ -250,6 +254,10 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 
 	// Sync React Query state to stores
 	useEffect(() => {
+		if (activeSearchSource === "manual" && !showingOptionsAfterConfirmation) {
+			return;
+		}
+
 		const suggestionsFromCache =
 			queryClient.getQueryData<Suggestion[]>([
 				"addressSearch",
@@ -352,6 +360,33 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 		[setActiveSearch, setSelectionAcknowledged, isRecallMode, selectedResult],
 	);
 
+	const handleManualAutocompleteStateChange = useCallback(
+		({ query, suggestions, isLoading, error }: ManualAutocompleteState) => {
+			const {
+				activeSearchSource: currentSource,
+				searchQuery: currentSearchQuery,
+			} = useIntentStore.getState();
+
+			const isCurrentManualState =
+				currentSource === "manual" ||
+				query === currentSearchQuery ||
+				(query === "" && currentSearchQuery === "");
+
+			if (!isCurrentManualState) {
+				return;
+			}
+
+			setApiResults({
+				suggestions,
+				isLoading,
+				error,
+				source: "manual",
+			});
+			syncToAgent();
+		},
+		[setApiResults, syncToAgent],
+	);
+
 	// Computed state
 	const shouldShowSuggestions =
 		(suggestions.length > 0 && !selectedResult && !isLoading) ||
@@ -377,6 +412,7 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 		handleRecallPreviousSearch,
 		handleRecallConfirmedSelection,
 		handleManualTyping,
+		handleManualAutocompleteStateChange,
 		handleHideOptions,
 
 		// State from stores (exposed to UI so UI doesn't import stores directly)

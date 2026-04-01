@@ -18,6 +18,9 @@ export default function AddressFinder() {
 							handlers.handleRecallConfirmedSelection
 						}
 						handleManualTyping={handlers.handleManualTyping}
+						handleManualAutocompleteStateChange={
+							handlers.handleManualAutocompleteStateChange
+						}
 						handleHideOptions={handlers.handleHideOptions}
 						state={handlers.state}
 						shouldShowSuggestions={handlers.shouldShowSuggestions}
