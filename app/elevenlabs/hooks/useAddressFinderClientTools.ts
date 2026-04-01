@@ -225,16 +225,28 @@ export function useAddressFinderClientTools(
 								multipleResultsCall.result.suggestions
 									? multipleResultsCall.result.suggestions
 									: [validatedSuggestion];
+							const validatedSuggestionIndex = allSuggestions.findIndex(
+								(candidate) =>
+									candidate.placeId === validatedSuggestion.placeId,
+							);
+							const cachedSuggestions =
+								validatedSuggestionIndex >= 0
+									? allSuggestions.map((candidate, index) =>
+											index === validatedSuggestionIndex
+												? validatedSuggestion
+												: candidate,
+										)
+									: allSuggestions;
 
 							queryClient.setQueryData(
 								["addressSearch", query],
-								allSuggestions,
+								cachedSuggestions,
 							);
 							setAgentLastSearchQuery(query);
 							setActiveSearch({ query, source: "voice" });
 
 							log(
-								`🔧 Stored ${allSuggestions.length} suggestions in cache for potential "show options again"`,
+								`🔧 Stored ${cachedSuggestions.length} suggestions in cache for potential "show options again"`,
 							);
 
 							return JSON.stringify({

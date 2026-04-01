@@ -13,6 +13,45 @@ export function createSelectionActions(
 	ctx: ActionContext,
 	state: ActionInternalState,
 ) {
+	const VALIDATED_ADDRESS_MARKERS = [
+		"address_validated",
+		"validated_address",
+	] as const;
+
+	const getValidatedAddressMarkers = (suggestion: Suggestion): string[] =>
+		(suggestion.types ?? []).filter((type) =>
+			VALIDATED_ADDRESS_MARKERS.includes(
+				type as (typeof VALIDATED_ADDRESS_MARKERS)[number],
+			),
+		);
+
+	const preserveValidatedAddressMarkers = (
+		original: Suggestion,
+		enriched: Suggestion,
+	): Suggestion => {
+		const markers = getValidatedAddressMarkers(original);
+		if (markers.length === 0) {
+			return enriched;
+		}
+
+		const enrichedTypes = enriched.types ?? [];
+		const missingMarkers = markers.filter(
+			(marker) => !enrichedTypes.includes(marker),
+		);
+
+		if (missingMarkers.length === 0) {
+			return enriched;
+		}
+
+		return {
+			...enriched,
+			types: [...enrichedTypes, ...missingMarkers],
+		};
+	};
+
+	const isAlreadyValidatedSuggestion = (suggestion: Suggestion): boolean =>
+		getValidatedAddressMarkers(suggestion).length > 0;
+
 	/**
 	 * Notify the agent about a selection via conversation message.
 	 */
@@ -160,20 +199,24 @@ export function createSelectionActions(
 			ctx.queryClient,
 			ctx.getPlaceDetailsAction,
 		);
+		const preparedResult = preserveValidatedAddressMarkers(
+			result,
+			enrichedResult,
+		);
 
 		// Step 2: Add to suggestions cache for agent context
 		// CRITICAL: Use agentLastSearchQuery to maintain cache consistency for "show options again"
 		const { agentLastSearchQuery } = useIntentStore.getState();
 		const currentSearchQuery =
-			agentLastSearchQuery || ctx.searchQuery || enrichedResult.description;
+			agentLastSearchQuery || ctx.searchQuery || preparedResult.description;
 
 		const currentSuggestions =
 			ctx.queryClient.getQueryData<Suggestion[]>([
 				"addressSearch",
 				currentSearchQuery,
 			]) || [];
-		if (!currentSuggestions.find((s) => s.placeId === enrichedResult.placeId)) {
-			const updatedSuggestions = [...currentSuggestions, enrichedResult];
+		if (!currentSuggestions.find((s) => s.placeId === preparedResult.placeId)) {
+			const updatedSuggestions = [...currentSuggestions, preparedResult];
 			ctx.queryClient.setQueryData(
 				["addressSearch", currentSearchQuery],
 				updatedSuggestions,
@@ -182,7 +225,7 @@ export function createSelectionActions(
 		}
 
 		// Step 3: Intent classification and validation
-		const intent = classifySelectedResult(enrichedResult);
+		const intent = classifySelectedResult(preparedResult);
 		ctx.log(`🎯 Initial classification from suggestion: ${intent}`);
 
 		if (intent === "address") {
@@ -191,6 +234,22 @@ export function createSelectionActions(
 			state.setIsValidating(true);
 
 			try {
+				if (isAlreadyValidatedSuggestion(preparedResult)) {
+					ctx.log(
+						"✅ Selection already has validated marker, skipping duplicate validation.",
+					);
+					const finalIntent = classifySelectedResult(preparedResult);
+					ctx.log(
+						`🎯 Final intent from existing validated selection: ${finalIntent}`,
+					);
+					ctx.setCurrentIntent(finalIntent);
+
+					updateSelectionState(preparedResult);
+					notifyAgentOfSelection(preparedResult.description, "address");
+					storeSelectionAndSync(preparedResult, currentSearchQuery);
+					return;
+				}
+
 				// Check if Convex is available before calling the action
 				if (!ctx.validateAddressAction) {
 					throw new Error(
@@ -199,7 +258,7 @@ export function createSelectionActions(
 				}
 
 				const validation = await ctx.validateAddressAction({
-					address: enrichedResult.description,
+					address: preparedResult.description,
 				});
 
 				ctx.log("🔬 VALIDATION RESULT:", validation);
@@ -207,12 +266,12 @@ export function createSelectionActions(
 				if (validation.success && validation.isValid) {
 					// Further enrich with validation data if available
 					const finalResult: Suggestion = {
-						...enrichedResult,
+						...preparedResult,
 						description:
 							validation.result?.address.formattedAddress ??
-							enrichedResult.description,
+							preparedResult.description,
 						placeId:
-							validation.result?.geocode.placeId ?? enrichedResult.placeId,
+							validation.result?.geocode.placeId ?? preparedResult.placeId,
 						lat: validation.result?.geocode?.location?.latitude,
 						lng: validation.result?.geocode?.location?.longitude,
 					};
@@ -226,7 +285,7 @@ export function createSelectionActions(
 				} else if (validation.success && validation.isRuralException) {
 					// Rural exception: prompt user for confirmation
 					state.setPendingRuralConfirmation({
-						result: enrichedResult,
+						result: preparedResult,
 						validation,
 					});
 					state.setValidationError(null);
