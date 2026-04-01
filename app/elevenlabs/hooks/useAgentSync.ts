@@ -1,9 +1,11 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useApiStore } from "~/stores/apiStore";
 import { useIntentStore } from "~/stores/intentStore";
 import { useUIStore } from "~/stores/uiStore";
 
 export function useAgentSync() {
+	const lastSyncedSignatureRef = useRef<string | null>(null);
+
 	const syncToAgent = useCallback(() => {
 		try {
 			const windowWithElevenLabs = window as typeof window & {
@@ -17,11 +19,9 @@ export function useAgentSync() {
 				const api = useApiStore.getState();
 
 				const { suggestions, isLoading, error, source } = api.apiResults;
-
-				// Create comprehensive agent state - use stable timestamp (rounded to nearest second)
-				const timestamp = Math.floor(Date.now() / 1000) * 1000;
-				const agentState = {
-					// UI State
+				const resolvedSource =
+					source ?? (ui.isRecording ? "voice" : "manual");
+				const semanticState = {
 					ui: {
 						isRecording: ui.isRecording,
 						isVoiceActive: ui.isVoiceActive,
@@ -30,8 +30,6 @@ export function useAgentSync() {
 						searchQuery: intent.searchQuery,
 						hasQuery: !!intent.searchQuery,
 					},
-
-					// API State (from Zustand - single source of truth)
 					api: {
 						suggestions,
 						isLoading,
@@ -39,16 +37,37 @@ export function useAgentSync() {
 						hasResults: suggestions.length > 0,
 						hasMultipleResults: suggestions.length > 1,
 						resultCount: suggestions.length,
-						source: source ?? (ui.isRecording ? "voice" : "manual"),
+						source: resolvedSource,
 					},
-
-					// Selection State
 					selection: {
 						selectedResult: intent.selectedResult,
 						hasSelection: !!intent.selectedResult,
 						selectedAddress: intent.selectedResult?.description || null,
 						selectedPlaceId: intent.selectedResult?.placeId || null,
 					},
+					context: {
+						agentLastSearchQuery: intent.agentLastSearchQuery,
+						activeSearchSource: intent.activeSearchSource,
+						selectionAcknowledged: ui.selectionAcknowledged,
+					},
+				};
+				const semanticSignature = JSON.stringify(semanticState);
+
+				if (lastSyncedSignatureRef.current === semanticSignature) {
+					return;
+				}
+
+				// Create comprehensive agent state - use stable timestamp (rounded to nearest second)
+				const timestamp = Math.floor(Date.now() / 1000) * 1000;
+				const agentState = {
+					// UI State
+					ui: semanticState.ui,
+
+					// API State (from Zustand - single source of truth)
+					api: semanticState.api,
+
+					// Selection State
+					selection: semanticState.selection,
 
 					// Meta
 					meta: {
@@ -98,6 +117,7 @@ export function useAgentSync() {
 					"selectionAcknowledged",
 					ui.selectionAcknowledged,
 				);
+				lastSyncedSignatureRef.current = semanticSignature;
 
 				if (ui.isLoggingEnabled) {
 					console.log("[AgentSync] State synchronized:", agentState);
