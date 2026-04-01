@@ -9,9 +9,7 @@ export function useAudioManager() {
 	// ✅ GET STATE AND ACTIONS FROM NEW PILLAR STORES
 	const {
 		isRecording,
-		isVoiceActive,
 		isLoggingEnabled,
-		setIsVoiceActive,
 		setIsRecording,
 		setAgentRequestedManual,
 	} = useUIStore();
@@ -52,32 +50,6 @@ export function useAudioManager() {
 				});
 				mediaStreamRef.current = stream;
 
-				const context = new AudioContext();
-				audioContextRef.current = context;
-				const source = context.createMediaStreamSource(stream);
-				const analyser = context.createAnalyser();
-				analyser.fftSize = 256;
-				source.connect(analyser);
-
-				let lastUpdate = 0;
-				const checkAudio = () => {
-					if (!mediaStreamRef.current) return; // Exit if cleaned up
-					const dataArray = new Uint8Array(analyser.frequencyBinCount);
-					analyser.getByteFrequencyData(dataArray);
-					const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-					const isActive = average > 10;
-					const now = Date.now();
-					if (
-						isActive !== useUIStore.getState().isVoiceActive &&
-						(isActive || now - lastUpdate > 200)
-					) {
-						useUIStore.getState().setIsVoiceActive(isActive);
-						lastUpdate = now;
-					}
-					requestAnimationFrame(checkAudio);
-				};
-				checkAudio();
-
 				await conversation.startSession();
 				setIsRecording(true);
 				setAgentRequestedManual(false); // Reset manual request flag when starting voice
@@ -90,7 +62,6 @@ export function useAudioManager() {
 			} catch (err) {
 				log("❌ RECORDING START FAILED:", err);
 				setIsRecording(false);
-				setIsVoiceActive(false);
 				cleanupAudio();
 				console.error("Error starting recording:", err);
 				addHistory({
@@ -104,7 +75,6 @@ export function useAudioManager() {
 			cleanupAudio,
 			log,
 			setIsRecording,
-			setIsVoiceActive,
 			setAgentRequestedManual,
 		],
 	);
@@ -122,7 +92,6 @@ export function useAudioManager() {
 				await conversation.endSession();
 			}
 			setIsRecording(false);
-			setIsVoiceActive(false);
 			cleanupAudio();
 			addHistory({
 				type: "system",
@@ -131,7 +100,7 @@ export function useAudioManager() {
 
 			log("✅ RECORDING STOPPED SUCCESSFULLY");
 		},
-		[addHistory, setIsRecording, setIsVoiceActive, cleanupAudio, log],
+		[addHistory, setIsRecording, cleanupAudio, log],
 	);
 
 	// Cleanup on unmount

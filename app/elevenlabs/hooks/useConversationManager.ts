@@ -7,7 +7,6 @@ import { ELEVENLABS_RETRY_CONFIG, withRetry } from "~/utils/retryMechanism";
 export function useConversationManager(clientTools: Record<string, any>) {
 	// More robust state selection to avoid lifecycle issues
 	const setIsRecording = useUIStore((state) => state.setIsRecording);
-	const setIsVoiceActive = useUIStore((state) => state.setIsVoiceActive);
 	const isLoggingEnabled = useUIStore((state) => state.isLoggingEnabled);
 	const vadThresholds = useUIStore((state) => state.vadThresholds);
 	const addHistory = useHistoryStore((state) => state.addHistory);
@@ -27,6 +26,13 @@ export function useConversationManager(clientTools: Record<string, any>) {
 		[isLoggingEnabled],
 	);
 
+	const setVoiceActivity = useCallback((isActive: boolean) => {
+		const { isVoiceActive, setIsVoiceActive } = useUIStore.getState();
+		if (isVoiceActive !== isActive) {
+			setIsVoiceActive(isActive);
+		}
+	}, []);
+
 	// Conversation setup with enhanced clientTools and complete event handling
 	const conversation = useConversation({
 		agentId: import.meta.env.VITE_ELEVENLABS_ADDRESS_AGENT_ID,
@@ -41,7 +47,7 @@ export function useConversationManager(clientTools: Record<string, any>) {
 			// Force state update on external disconnect
 			// Using .getState() is safe here as it's outside the React render cycle
 			useUIStore.getState().setIsRecording(false);
-			useUIStore.getState().setIsVoiceActive(false);
+			setVoiceActivity(false);
 		},
 		onMessage: (message) => {
 			if ((message.role ?? message.source) === "user") {
@@ -142,9 +148,9 @@ export function useConversationManager(clientTools: Record<string, any>) {
 
 			// Update UI state based on configurable voice activity thresholds
 			if (vadScore > thresholds.activationThreshold) {
-				useUIStore.getState().setIsVoiceActive(true);
+				setVoiceActivity(true);
 			} else if (vadScore < thresholds.deactivationThreshold) {
-				useUIStore.getState().setIsVoiceActive(false);
+				setVoiceActivity(false);
 			}
 		},
 		clientTools,
