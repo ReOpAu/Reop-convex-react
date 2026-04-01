@@ -4,68 +4,76 @@ import { Button } from "~/components/ui/button";
 
 const benefits = [
 	{
-		icon: <Target className="w-8 h-8 text-seller-purple-600" />,
-		title: "Optimal Pricing Strategy",
+		icon: <Target className="size-7 text-market-brass" />,
+		title: "Smarter pricing posture",
 		description:
-			"Our AI analyzes market data, comparable sales, and local trends to help you set the perfect listing price for maximum return.",
+			"Shape the first brief around positioning and demand instead of rushing straight to a noisy public number.",
 	},
 	{
-		icon: <Users className="w-8 h-8 text-seller-purple-600" />,
-		title: "Targeted Buyer Matching",
+		icon: <Users className="size-7 text-market-brass" />,
+		title: "Better buyer fit",
 		description:
-			"Connect directly with pre-qualified buyers actively searching for properties like yours, reducing time on market.",
+			"Reach people whose brief already lines up with the asset, so the first conversation starts further down the track.",
 	},
 	{
-		icon: <BarChart className="w-8 h-8 text-seller-purple-600" />,
-		title: "Market Performance Insights",
+		icon: <BarChart className="size-7 text-market-brass" />,
+		title: "Live market reading",
 		description:
-			"Get detailed analytics on viewer engagement, market reception, and real-time feedback to optimize your listing.",
+			"Watch response quality and adjust the brief before you sink time into the wrong presentation strategy.",
 	},
 	{
-		icon: <Clock className="w-8 h-8 text-seller-purple-600" />,
-		title: "Strategic Timing",
+		icon: <Clock className="size-7 text-market-brass" />,
+		title: "Timing without panic",
 		description:
-			"Leverage our predictive analytics to identify the optimal time to list your property based on market conditions.",
+			"Move when the market is ready for your brief, not because a template landing page told you to hurry.",
 	},
 ];
 
 export function SellerGuide() {
 	return (
-		<section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-			<div className="container mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="text-center mb-12">
-					<p className="text-base font-semibold leading-7 text-seller-purple-600">
-						For Property Sellers
-					</p>
-					<h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-						Maximize Your Property's Potential
-					</h2>
-					<p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-						Turn data into dollars with REOP. Our AI-powered tools help you make
-						informed decisions and connect with the right buyers at the right
-						time.
-					</p>
-				</div>
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-					{benefits.map((benefit) => (
-						<div
-							key={benefit.title}
-							className="p-6 text-center border border-gray-200/50 rounded-xl shadow-sm hover:shadow-md transition-shadow"
-						>
-							<div className="flex items-center justify-center h-12 w-12 rounded-lg bg-seller-purple-100 mb-4 mx-auto">
-								{benefit.icon}
-							</div>
-							<h3 className="text-xl font-semibold text-gray-800 mb-2">
-								{benefit.title}
-							</h3>
-							<p className="text-gray-600">{benefit.description}</p>
+		<section className="py-16 sm:py-24">
+			<div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
+				<div className="overflow-hidden rounded-[34px] border border-market-forest/18 bg-market-forest text-market-paper shadow-[0_40px_80px_-50px_rgba(38,70,61,0.9)]">
+					<div className="grid gap-10 p-8 sm:p-10 lg:grid-cols-[0.85fr_1.15fr]">
+						<div>
+							<p className="text-xs font-semibold uppercase tracking-[0.32em] text-market-paper/60">
+								For sellers
+							</p>
+							<h2 className="mt-4 font-display text-4xl leading-none sm:text-5xl">
+								Sell with a clearer brief and a steadier hand.
+							</h2>
+							<p className="mt-5 max-w-md text-sm leading-8 text-market-paper/74">
+								REOP helps you understand how the market is likely to respond
+								before you commit to the full performance of a public listing
+								campaign.
+							</p>
+							<Button
+								asChild
+								size="lg"
+								className="mt-8 h-12 rounded-full border border-market-brass/50 bg-market-brass px-7 text-market-ink shadow-none hover:bg-market-brass/90"
+							>
+								<Link to="/sign-up">List Your Property</Link>
+							</Button>
 						</div>
-					))}
-				</div>
-				<div className="mt-12 text-center">
-					<Button asChild size="lg" variant="seller">
-						<Link to="/sign-up">List Your Property</Link>
-					</Button>
+						<div className="grid gap-4 sm:grid-cols-2">
+							{benefits.map((benefit) => (
+								<article
+									key={benefit.title}
+									className="rounded-[26px] border border-market-paper/12 bg-market-paper/8 p-5"
+								>
+									<div className="flex size-14 items-center justify-center rounded-full border border-market-paper/12 bg-market-paper/8">
+										{benefit.icon}
+									</div>
+									<h3 className="mt-5 text-xl font-semibold text-market-paper">
+										{benefit.title}
+									</h3>
+									<p className="mt-3 text-sm leading-7 text-market-paper/70">
+										{benefit.description}
+									</p>
+								</article>
+							))}
+						</div>
+					</div>
 				</div>
 			</div>
 		</section>

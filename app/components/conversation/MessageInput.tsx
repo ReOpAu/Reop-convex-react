@@ -1,7 +1,7 @@
 "use client";
 
 import { Send } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
@@ -16,19 +16,6 @@ export function MessageInput({
 	isConnected,
 }: MessageInputProps) {
 	const [message, setMessage] = useState("");
-	const [isTyping, setIsTyping] = useState(false);
-
-	// Handle typing indicator
-	useEffect(() => {
-		let typingTimeout: NodeJS.Timeout;
-		if (message) {
-			setIsTyping(true);
-			typingTimeout = setTimeout(() => setIsTyping(false), 1000);
-		} else {
-			setIsTyping(false);
-		}
-		return () => clearTimeout(typingTimeout);
-	}, [message]);
 
 	const handleSend = useCallback(async () => {
 		if (!message.trim()) return;
@@ -42,14 +29,14 @@ export function MessageInput({
 	}, [message, onSendMessage]);
 
 	return (
-		<div className="flex items-center gap-3 p-4 border-t bg-gray-50/50 dark:bg-gray-900/50">
+		<div className="flex items-center gap-3 border-t border-market-line/70 bg-white/48 p-4">
 			<Input
 				value={message}
 				onChange={(e) => setMessage(e.target.value)}
 				onKeyPress={(e) => e.key === "Enter" && handleSend()}
-				placeholder="Type your message..."
+				placeholder="Type a question about your brief, suburb, or next move..."
 				disabled={!isConnected}
-				className="flex-1 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary/20"
+				className="h-12 flex-1 rounded-full border-market-line/80 bg-market-paper/80 px-5 text-market-ink placeholder:text-market-ink/40 focus-visible:border-market-forest/30 focus-visible:ring-market-forest/10"
 				aria-label="Message input"
 			/>
 			<Button
@@ -57,10 +44,10 @@ export function MessageInput({
 				disabled={!isConnected || !message.trim()}
 				size="icon"
 				className={cn(
-					"h-10 w-10 shrink-0 shadow-sm transition-all duration-200",
+					"h-12 w-12 shrink-0 rounded-full shadow-none transition-all duration-200",
 					message.trim() && isConnected
-						? "bg-primary hover:bg-primary/90 text-white scale-100"
-						: "bg-gray-200 dark:bg-gray-700 text-gray-400 scale-95",
+						? "scale-100 border border-market-forest bg-market-forest text-market-paper hover:bg-market-forest/92"
+						: "scale-95 border border-market-line/70 bg-market-line/60 text-market-paper/75",
 				)}
 				aria-label="Send message"
 			>

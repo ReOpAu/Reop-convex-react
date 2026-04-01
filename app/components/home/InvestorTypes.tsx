@@ -2,69 +2,108 @@ import { Building, CheckCircle2, Home } from "lucide-react";
 
 const types = [
 	{
-		icon: <Home className="w-10 h-10 text-buyer-orange-500" />,
+		icon: <Home className="size-9 text-market-clay" />,
 		title: "Owner Occupiers",
 		description:
-			"Find your dream home with confidence. Access off-market properties and get matched with motivated sellers.",
+			"Track the suburbs and homes that fit your actual life, not just a generic saved search.",
 		features: [
-			"Direct access to pre-market listings",
-			"Personalized property matching",
-			"First-home buyer support",
-			"Local market insights",
+			"Direct access to quieter briefs",
+			"Suburb-by-suburb filtering",
+			"Timing and readiness signal",
+			"Cleaner first conversations",
 		],
 	},
 	{
-		icon: <Building className="w-10 h-10 text-seller-purple-500" />,
+		icon: <Building className="size-9 text-market-paper" />,
 		title: "Property Investors",
 		description:
-			"Discover high-yield investment opportunities. Make data-driven decisions with our comprehensive market analysis.",
+			"Find yield, timing, and local movement earlier so you can act before the obvious crowd arrives.",
 		features: [
-			"Investment property analysis",
-			"Rental yield calculations",
-			"Portfolio expansion opportunities",
-			"Market trend insights",
+			"Sharper suburb intelligence",
+			"High-intent opportunity discovery",
+			"Faster shortlisting",
+			"Data-backed expansion moves",
 		],
 	},
 ];
 
 export function InvestorTypes() {
 	return (
-		<section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-			<div className="container mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="text-center mb-12">
-					<p className="text-base font-semibold leading-7 text-primary">
-						For Every Type of Buyer
+		<section className="py-16 sm:py-24">
+			<div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
+				<div className="max-w-3xl">
+					<p className="text-xs font-semibold uppercase tracking-[0.32em] text-market-forest/65">
+						Two fronts of the market
 					</p>
-					<h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-						Find Your Perfect Match
+					<h2 className="mt-4 font-display text-4xl leading-none text-market-ink sm:text-5xl">
+						REOP works when the buyer brief and seller intent are both sharp.
 					</h2>
-					<p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-						Whether you're looking for a home to live in or an investment
-						property, REOP helps you make smarter real estate decisions.
-					</p>
 				</div>
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-					{types.map((type) => (
-						<div
+				<div className="mt-10 grid gap-6 lg:grid-cols-2">
+					{types.map((type, index) => (
+						<article
 							key={type.title}
-							className="p-8 border border-gray-200/80 rounded-xl shadow-sm bg-white"
+							className={
+								index === 0
+									? "rounded-[32px] border border-market-line/70 bg-white/70 p-8 shadow-[0_24px_60px_-42px_rgba(29,23,17,0.45)] backdrop-blur-sm"
+									: "rounded-[32px] border border-market-forest/20 bg-market-forest p-8 text-market-paper shadow-[0_30px_70px_-45px_rgba(38,70,61,0.85)]"
+							}
 						>
-							<div className="flex items-center gap-4 mb-4">
-								{type.icon}
-								<h3 className="text-2xl font-semibold text-gray-800">
-									{type.title}
-								</h3>
+							<div className="flex items-center gap-4">
+								<div
+									className={
+										index === 0
+											? "flex size-14 items-center justify-center rounded-full border border-market-line/80 bg-market-sand/65"
+											: "flex size-14 items-center justify-center rounded-full border border-market-paper/15 bg-market-paper/8"
+									}
+								>
+									{type.icon}
+								</div>
+								<div>
+									<p
+										className={
+											index === 0
+												? "text-xs font-semibold uppercase tracking-[0.28em] text-market-clay"
+												: "text-xs font-semibold uppercase tracking-[0.28em] text-market-paper/60"
+										}
+									>
+										{index === 0 ? "For buyers" : "For investors"}
+									</p>
+									<h3 className="mt-2 font-display text-4xl leading-none">
+										{type.title}
+									</h3>
+								</div>
 							</div>
-							<p className="text-gray-600 mb-6">{type.description}</p>
-							<ul className="space-y-3">
+							<p
+								className={
+									index === 0
+										? "mt-6 text-sm leading-7 text-market-ink/72"
+										: "mt-6 text-sm leading-7 text-market-paper/74"
+								}
+							>
+								{type.description}
+							</p>
+							<ul className="mt-8 space-y-3">
 								{type.features.map((feature) => (
-									<li key={feature} className="flex items-center gap-3">
-										<CheckCircle2 className="w-5 h-5 text-green-500" />
-										<span className="text-gray-700">{feature}</span>
+									<li key={feature} className="flex gap-3">
+										<CheckCircle2
+											className={
+												index === 0
+													? "mt-0.5 size-5 text-market-clay"
+													: "mt-0.5 size-5 text-market-brass"
+											}
+										/>
+										<span
+											className={
+												index === 0 ? "text-market-ink/78" : "text-market-paper/78"
+											}
+										>
+											{feature}
+										</span>
 									</li>
 								))}
 							</ul>
-						</div>
+						</article>
 					))}
 				</div>
 			</div>

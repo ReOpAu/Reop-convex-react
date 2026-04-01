@@ -1,82 +1,73 @@
 import {
-	BarChart,
 	Handshake,
-	Map,
-	ShieldCheck,
-	Sparkles,
-	Zap,
+	LockKeyhole,
+	MapPinned,
+	ScanSearch,
 } from "lucide-react";
 
 const features = [
 	{
-		icon: <Zap className="w-8 h-8 text-buyer-orange-500" />,
-		name: "Instant Matching",
+		icon: <ScanSearch className="size-5 text-market-clay" />,
+		name: "Search by brief, not by brochure",
 		description:
-			"Our AI-powered platform instantly connects buyers with their perfect properties and sellers with qualified buyers.",
+			"Set criteria around suburb, timing, and intent so you spend less time grazing generic portals.",
 	},
 	{
-		icon: <ShieldCheck className="w-8 h-8 text-seller-purple-500" />,
-		name: "Complete Privacy",
+		icon: <LockKeyhole className="size-5 text-market-clay" />,
+		name: "Keep the first move quieter",
 		description:
-			"List quietly and maintain full control over who sees your property or buyer requirements.",
+			"Test demand and circulate a cleaner brief before you commit to a loud, expensive public campaign.",
 	},
 	{
-		icon: <Handshake className="w-8 h-8 text-buyer-orange-500" />,
-		name: "Direct Connections",
+		icon: <Handshake className="size-5 text-market-clay" />,
+		name: "Move to direct introductions faster",
 		description:
-			"Connect directly with interested parties, avoiding unnecessary intermediaries and costs.",
+			"When the fit looks real, REOP shortens the path between interest and the first meaningful conversation.",
 	},
 	{
-		icon: <BarChart className="w-8 h-8 text-seller-purple-500" />,
-		name: "Market Intelligence",
+		icon: <MapPinned className="size-5 text-market-clay" />,
+		name: "Use real suburb context",
 		description:
-			"Access real-time market insights and property analytics to make informed decisions.",
-	},
-	{
-		icon: <Map className="w-8 h-8 text-buyer-orange-500" />,
-		name: "Location Insights",
-		description:
-			"Get detailed neighborhood analysis and property value trends for any area.",
-	},
-	{
-		icon: <Sparkles className="w-8 h-8 text-seller-purple-500" />,
-		name: "Exclusive Deals",
-		description:
-			"Access special rates on mortgages, insurance, and other essential services through our trusted partners.",
+			"Address tools and location signal help you narrow down where the opportunity actually fits.",
 	},
 ];
 
 export function Features() {
 	return (
-		<section className="py-20 bg-white">
-			<div className="container mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="text-center mb-12">
-					<p className="text-base font-semibold leading-7 text-primary">
-						Complete Platform
+		<section className="py-16 sm:py-24">
+			<div className="mx-auto grid max-w-[1360px] gap-10 border-y border-market-line/70 px-4 py-10 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+				<div className="max-w-xl">
+					<p className="text-xs font-semibold uppercase tracking-[0.32em] text-market-forest/65">
+						Why it feels different
 					</p>
-					<h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-						Everything You Need in One Place
+					<h2 className="mt-4 font-display text-4xl leading-none text-market-ink sm:text-5xl">
+						Built like a matching desk, not another portal carousel.
 					</h2>
-					<p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-						REOP goes beyond traditional listings to provide a comprehensive
-						suite of tools and services that make real estate transactions
-						smarter, faster, and more cost-effective.
+					<p className="mt-5 text-base leading-8 text-market-ink/72">
+						The public experience should feel more like reading a sharp property
+						brief than wandering a template-heavy SaaS homepage. These are the
+						behaviours that shape that difference.
 					</p>
 				</div>
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-					{features.map((feature) => (
-						<div
+				<div className="grid gap-6 sm:grid-cols-2">
+					{features.map((feature, index) => (
+						<article
 							key={feature.name}
-							className="text-center p-6 border border-gray-200/50 rounded-xl shadow-sm hover:shadow-md transition-shadow"
+							className="border-t border-market-line/70 pt-5"
 						>
-							<div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gray-100 mb-4 mx-auto">
+							<div className="flex items-center justify-between">
 								{feature.icon}
+								<span className="font-display text-2xl text-market-forest/25">
+									0{index + 1}
+								</span>
 							</div>
-							<h3 className="text-xl font-semibold text-gray-800 mb-2">
+							<h3 className="mt-4 text-xl font-semibold text-market-ink">
 								{feature.name}
 							</h3>
-							<p className="text-gray-600">{feature.description}</p>
-						</div>
+							<p className="mt-3 text-sm leading-7 text-market-ink/72">
+								{feature.description}
+							</p>
+						</article>
 					))}
 				</div>
 			</div>

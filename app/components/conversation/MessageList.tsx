@@ -45,18 +45,23 @@ export function MessageList({ messages, isAgentTyping }: MessageListProps) {
 	return (
 		<div
 			ref={chatContainerRef}
-			className="flex-1 overflow-y-auto space-y-4 p-6 scroll-smooth bg-gradient-to-b from-gray-50/30 to-transparent dark:from-gray-800/30"
+			className="flex-1 space-y-4 overflow-y-auto bg-transparent p-6 scroll-smooth"
 			role="log"
 			aria-label="Chat messages"
 		>
 			{messages.length === 0 && (
-				<div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
-					<div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-blue-600/20 flex items-center justify-center mb-4">
-						<span className="text-2xl">💬</span>
+				<div className="flex h-full flex-col items-center justify-center text-center text-market-ink/62">
+					<div className="mb-4 flex size-16 items-center justify-center rounded-full border border-market-line/80 bg-market-sand/55">
+						<span className="font-display text-3xl leading-none text-market-forest">
+							R
+						</span>
 					</div>
-					<p className="text-lg font-medium mb-2">Start a conversation</p>
-					<p className="text-sm">
-						Choose text or voice chat to begin talking with the AI assistant.
+					<p className="mb-2 text-lg font-medium text-market-ink">
+						Start a conversation
+					</p>
+					<p className="max-w-sm text-sm leading-7">
+						Use text or voice to test a buyer or seller brief, compare suburbs,
+						or think through your next move.
 					</p>
 				</div>
 			)}
@@ -75,30 +80,30 @@ export function MessageList({ messages, isAgentTyping }: MessageListProps) {
 					>
 						<div
 							className={cn(
-								"w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+								"flex size-8 shrink-0 items-center justify-center rounded-full",
 								msg.sender === "user"
 									? msg.isTranscribed
-										? "bg-gradient-to-br from-emerald-500 to-emerald-600"
-										: "bg-gradient-to-br from-primary to-blue-600"
-									: "bg-gradient-to-br from-gray-600 to-gray-700 dark:from-gray-500 dark:to-gray-600",
+										? "bg-market-brass text-market-ink"
+										: "bg-market-forest text-market-paper"
+									: "border border-market-line/80 bg-market-sand/55 text-market-forest",
 							)}
 						>
-							<span className="text-white text-xs font-medium">
+							<span className="text-xs font-medium">
 								{msg.sender === "user"
 									? msg.isTranscribed
-										? "🎤"
-										: "U"
-									: "🤖"}
+										? "V"
+										: "You"
+									: "RE"}
 							</span>
 						</div>
 						<div
 							className={cn(
-								"rounded-2xl px-4 py-3 shadow-sm max-w-full",
+								"max-w-full rounded-[22px] px-4 py-3 shadow-sm",
 								msg.sender === "user"
 									? msg.isTranscribed
-										? "bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/30 text-emerald-900 dark:text-emerald-100 border border-emerald-200 dark:border-emerald-700"
-										: "bg-gradient-to-br from-primary to-blue-600 text-white"
-									: "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700",
+										? "border border-market-brass/40 bg-market-brass/18 text-market-ink"
+										: "bg-market-forest text-market-paper"
+									: "border border-market-line/80 bg-white/72 text-market-ink",
 							)}
 							aria-label={`${msg.sender} message`}
 							data-testid={`message-${index}`}
@@ -111,14 +116,14 @@ export function MessageList({ messages, isAgentTyping }: MessageListProps) {
 			{isAgentTyping && (
 				<BlurFade direction="up" delay={0.1} duration={0.2}>
 					<div className="flex items-start gap-3 max-w-[85%] mr-auto">
-						<div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 dark:from-gray-500 dark:to-gray-600 flex items-center justify-center shrink-0">
-							<span className="text-white text-xs font-medium">🤖</span>
+						<div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-market-line/80 bg-market-sand/55 text-market-forest">
+							<span className="text-xs font-medium">RE</span>
 						</div>
-						<div className="bg-white dark:bg-gray-800 rounded-2xl px-4 py-3 shadow-sm border border-gray-200 dark:border-gray-700">
+						<div className="rounded-[22px] border border-market-line/80 bg-white/72 px-4 py-3 shadow-sm">
 							<div className="flex items-center gap-1">
-								<div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-								<div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
-								<div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
+								<div className="h-2 w-2 animate-bounce rounded-full bg-market-forest/40" />
+								<div className="h-2 w-2 animate-bounce rounded-full bg-market-forest/40 delay-100" />
+								<div className="h-2 w-2 animate-bounce rounded-full bg-market-forest/40 delay-200" />
 							</div>
 						</div>
 					</div>

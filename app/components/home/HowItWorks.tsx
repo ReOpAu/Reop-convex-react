@@ -1,59 +1,64 @@
 const steps = [
 	{
 		number: 1,
-		title: "Create Your Listing",
+		title: "Write a brief",
 		description:
-			"List your property or buyer requirements in under a minute—no contracts, no costs, and complete privacy.",
+			"Describe the buyer or seller intent, suburb focus, and the constraints that actually matter.",
 	},
 	{
 		number: 2,
-		title: "Get Matched",
+		title: "Refine the signal",
 		description:
-			"Our AI instantly connects you with perfect matches—sellers find qualified buyers, buyers discover ideal properties.",
+			"Use the address and matching tools to tighten the field instead of browsing aimlessly.",
 	},
 	{
 		number: 3,
-		title: "Access Services",
+		title: "Watch for fit",
 		description:
-			"Explore exclusive lending deals, insurance offers, and other essential services through our trusted partners.",
+			"Surface the people and properties that line up with the brief before the opportunity turns generic.",
 	},
 	{
 		number: 4,
-		title: "Connect Directly",
+		title: "Move directly",
 		description:
-			"Engage with matched parties on your terms, maintaining control and privacy throughout the process.",
+			"Once the fit is real, connect without the extra theatre and keep the conversation on the decision.",
 	},
 ];
 
 export function HowItWorks() {
 	return (
-		<section id="how-it-works" className="py-20 bg-white">
-			<div className="container mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="text-center mb-12">
-					<p className="text-base font-semibold leading-7 text-primary">
-						Simple Process
+		<section id="how-it-works" className="py-16 sm:py-24">
+			<div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
+				<div className="max-w-3xl">
+					<p className="text-xs font-semibold uppercase tracking-[0.32em] text-market-forest/65">
+						How it works
 					</p>
-					<h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-						Transform Your Real Estate Journey
+					<h2 className="mt-4 font-display text-4xl leading-none text-market-ink sm:text-5xl">
+						A straighter path from brief to real conversation.
 					</h2>
-					<p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-						Experience a new way to buy and sell property—faster, easier, and on
-						your terms. No commitments, no pressure, just results.
+					<p className="mt-5 text-base leading-8 text-market-ink/72">
+						The product flow should feel measured and deliberate. Each step helps
+						you filter the market more effectively instead of dumping you into a
+						sea of identical cards.
 					</p>
 				</div>
-				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+				<div className="mt-10 grid gap-5 lg:grid-cols-4">
 					{steps.map((step) => (
-						<div key={step.number} className="p-6 text-center">
-							<div className="flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-r from-buyer-orange-500 to-seller-purple-500 mb-4 mx-auto">
-								<span className="text-2xl font-bold text-white">
-									{step.number}
-								</span>
-							</div>
-							<h3 className="text-xl font-semibold text-gray-800 mb-2">
+						<article
+							key={step.number}
+							className="relative rounded-[28px] border border-market-line/70 bg-white/68 p-6 pt-10 shadow-[0_22px_55px_-42px_rgba(29,23,17,0.45)] backdrop-blur-sm"
+						>
+							<div className="absolute left-6 top-0 h-10 w-px bg-market-brass/80" />
+							<p className="font-display text-4xl leading-none text-market-clay">
+								0{step.number}
+							</p>
+							<h3 className="mt-6 text-2xl font-semibold text-market-ink">
 								{step.title}
 							</h3>
-							<p className="text-gray-600">{step.description}</p>
-						</div>
+							<p className="mt-3 text-sm leading-7 text-market-ink/72">
+								{step.description}
+							</p>
+						</article>
 					))}
 				</div>
 			</div>

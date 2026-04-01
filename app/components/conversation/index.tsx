@@ -233,15 +233,20 @@ function ConversationContent() {
 	);
 
 	return (
-		<Card className="w-full max-w-2xl mx-auto shadow-lg border-0 bg-white dark:bg-gray-900">
-			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900">
+		<Card className="w-full max-w-none overflow-hidden rounded-[32px] border border-market-line/70 bg-[rgba(251,247,241,0.88)] py-0 shadow-[0_35px_80px_-48px_rgba(29,23,17,0.55)] backdrop-blur-sm">
+			<CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-market-line/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(244,236,223,0.72))] pb-5">
 				<div className="flex items-center gap-3">
-					<div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
-						<span className="text-white text-lg">🤖</span>
+					<div className="flex size-11 items-center justify-center rounded-full border border-market-forest/15 bg-market-forest text-market-paper">
+						<span className="font-display text-2xl leading-none">R</span>
 					</div>
-					<CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">
-						AI Assistant
-					</CardTitle>
+					<div>
+						<p className="text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-market-forest/65">
+							Matching Desk
+						</p>
+						<CardTitle className="mt-2 font-display text-4xl leading-none text-market-ink">
+							Talk through a live brief
+						</CardTitle>
+					</div>
 				</div>
 				<div className="flex items-center gap-3">
 					<LanguageSelector
@@ -255,7 +260,7 @@ function ConversationContent() {
 				</div>
 			</CardHeader>
 			<CardContent className="p-0">
-				<div className="flex flex-col h-[500px] bg-white dark:bg-gray-900">
+				<div className="flex h-[500px] flex-col bg-transparent">
 					<MessageList messages={messages} isAgentTyping={isAgentTyping} />
 					<MessageInput
 						onSendMessage={handleSendMessage}
@@ -263,24 +268,24 @@ function ConversationContent() {
 					/>
 				</div>
 
-				<div className="flex flex-col sm:flex-row gap-3 p-6 pt-4 bg-gray-50/50 dark:bg-gray-900/50 border-t">
+				<div className="flex flex-col gap-3 border-t border-market-line/70 bg-white/45 p-6 pt-5 sm:flex-row">
 					{conversation.status !== "connected" ? (
 						<>
 							<Button
 								onClick={() => startConversation(false)}
 								variant="default"
 								size="lg"
-								className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md"
+								className="h-12 flex-1 rounded-full border border-market-forest bg-market-forest text-market-paper shadow-none hover:bg-market-forest/92"
 							>
-								💬 Start Text Chat
+								Start Text Chat
 							</Button>
 							<Button
 								onClick={() => startConversation(true)}
 								variant="secondary"
 								size="lg"
-								className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white shadow-md"
+								className="h-12 flex-1 rounded-full border border-market-brass/50 bg-market-brass text-market-ink shadow-none hover:bg-market-brass/92"
 							>
-								🎤 Start Voice Chat
+								Start Voice Chat
 							</Button>
 						</>
 					) : (
@@ -288,9 +293,9 @@ function ConversationContent() {
 							onClick={stopConversation}
 							variant="destructive"
 							size="lg"
-							className="w-full shadow-md"
+							className="h-12 w-full rounded-full border border-market-ink/20 bg-market-ink text-market-paper shadow-none hover:bg-market-ink/92"
 						>
-							❌ End Conversation
+							End Conversation
 						</Button>
 					)}
 				</div>

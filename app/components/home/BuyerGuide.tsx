@@ -4,67 +4,74 @@ import { Button } from "~/components/ui/button";
 
 const benefits = [
 	{
-		icon: <Search className="w-8 h-8 text-buyer-orange-600" />,
-		title: "Smart Property Matching",
+		icon: <Search className="size-7 text-market-clay" />,
+		title: "Sharper property shortlists",
 		description:
-			"Our AI analyzes thousands of properties to find perfect matches based on your specific criteria and investment goals.",
+			"Skip the endless swipe through irrelevant stock and narrow the field around fit, timing, and location.",
 	},
 	{
-		icon: <BarChart className="w-8 h-8 text-buyer-orange-600" />,
-		title: "Market Intelligence",
+		icon: <BarChart className="size-7 text-market-clay" />,
+		title: "Local market context",
 		description:
-			"Get real-time insights into property values, market trends, and growth potential in your target areas.",
+			"Use suburb signal and demand context to understand what is moving now, not what looked good three months ago.",
 	},
 	{
-		icon: <TrendingUp className="w-8 h-8 text-buyer-orange-600" />,
-		title: "Investment Analysis",
+		icon: <TrendingUp className="size-7 text-market-clay" />,
+		title: "Better investment filtering",
 		description:
-			"Comprehensive ROI calculations, rental yield projections, and property appreciation forecasts.",
+			"Separate portfolio-worthy options from the pretty distractions before you waste attention on them.",
 	},
 	{
-		icon: <Bell className="w-8 h-8 text-buyer-orange-600" />,
-		title: "Opportunity Alerts",
+		icon: <Bell className="size-7 text-market-clay" />,
+		title: "Earlier opportunity alerts",
 		description:
-			"Receive instant notifications when properties matching your criteria hit the market or have price adjustments.",
+			"Stay close to the movement you care about without living inside a generic property portal every day.",
 	},
 ];
 
 export function BuyerGuide() {
 	return (
-		<section className="py-20 bg-white">
-			<div className="container mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="text-center mb-12">
-					<p className="text-base font-semibold leading-7 text-buyer-orange-600">
-						For Property Buyers
+		<section className="py-16 sm:py-24">
+			<div className="mx-auto grid max-w-[1360px] gap-10 px-4 sm:px-6 lg:grid-cols-[0.78fr_1.22fr] lg:px-8">
+				<div className="lg:sticky lg:top-28 lg:self-start">
+					<p className="text-xs font-semibold uppercase tracking-[0.32em] text-market-forest/65">
+						For buyers
 					</p>
-					<h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-						Your Intelligent Property Search Partner
+					<h2 className="mt-4 font-display text-4xl leading-none text-market-ink sm:text-5xl">
+						Go suburb by suburb with more signal and less clutter.
 					</h2>
-					<p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-						REOP revolutionizes how you find and evaluate property investments,
-						combining AI-powered insights with comprehensive market data.
+					<p className="mt-5 max-w-md text-base leading-8 text-market-ink/72">
+						Most property interfaces make you browse forever. REOP is designed
+						to help you filter harder, notice patterns sooner, and act when a
+						match is worth the call.
 					</p>
+					<Button
+						asChild
+						size="lg"
+						className="mt-8 h-12 rounded-full border border-market-forest bg-market-forest px-7 text-market-paper shadow-[0_24px_40px_-24px_rgba(38,70,61,0.8)] hover:bg-market-forest/92"
+					>
+						<Link to="/sign-up">Start Your Search</Link>
+					</Button>
 				</div>
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+				<div className="grid gap-4">
 					{benefits.map((benefit) => (
-						<div
+						<article
 							key={benefit.title}
-							className="p-6 text-center border border-gray-200/50 rounded-xl shadow-sm hover:shadow-md transition-shadow"
+							className="grid gap-5 rounded-[28px] border border-market-line/70 bg-white/70 p-6 shadow-[0_22px_55px_-42px_rgba(29,23,17,0.45)] backdrop-blur-sm sm:grid-cols-[72px_1fr]"
 						>
-							<div className="flex items-center justify-center h-12 w-12 rounded-lg bg-buyer-orange-100 mb-4 mx-auto">
+							<div className="flex size-14 items-center justify-center rounded-full border border-market-line/80 bg-market-sand/60">
 								{benefit.icon}
 							</div>
-							<h3 className="text-xl font-semibold text-gray-800 mb-2">
-								{benefit.title}
-							</h3>
-							<p className="text-gray-600">{benefit.description}</p>
-						</div>
+							<div>
+								<h3 className="text-2xl font-semibold text-market-ink">
+									{benefit.title}
+								</h3>
+								<p className="mt-3 text-sm leading-7 text-market-ink/72">
+									{benefit.description}
+								</p>
+							</div>
+						</article>
 					))}
-				</div>
-				<div className="mt-12 text-center">
-					<Button asChild size="lg" variant="buyer">
-						<Link to="/sign-up">Start Your Property Search</Link>
-					</Button>
 				</div>
 			</div>
 		</section>
