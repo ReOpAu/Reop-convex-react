@@ -16,7 +16,7 @@ export function useAgentSync() {
 				const intent = useIntentStore.getState();
 				const api = useApiStore.getState();
 
-				const { suggestions, isLoading, error } = api.apiResults;
+				const { suggestions, isLoading, error, source } = api.apiResults;
 
 				// Create comprehensive agent state - use stable timestamp (rounded to nearest second)
 				const timestamp = Math.floor(Date.now() / 1000) * 1000;
@@ -39,7 +39,7 @@ export function useAgentSync() {
 						hasResults: suggestions.length > 0,
 						hasMultipleResults: suggestions.length > 1,
 						resultCount: suggestions.length,
-						source: ui.isRecording ? "voice" : "manual",
+						source: source ?? (ui.isRecording ? "voice" : "manual"),
 					},
 
 					// Selection State
