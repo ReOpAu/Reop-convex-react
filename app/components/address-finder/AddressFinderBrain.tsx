@@ -65,6 +65,8 @@ export interface AddressFinderBrainHandlers {
 		history: HistoryItem[];
 		searchHistory: SearchHistoryEntry[];
 		addressSelections: AddressSelectionEntry[];
+		getSessionToken: () => string;
+		clearSessionToken: () => void;
 	};
 
 	// Computed state
@@ -179,6 +181,7 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 		setAgentRequestedManual,
 		addHistory,
 		getSessionToken,
+		getCurrentSessionToken,
 		clearSessionToken,
 		isRecording,
 		conversationRef,
@@ -428,6 +431,8 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 			history,
 			searchHistory,
 			addressSelections,
+			getSessionToken,
+			clearSessionToken,
 		},
 
 		// Computed state

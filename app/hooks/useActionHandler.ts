@@ -26,13 +26,17 @@ type UseActionHandlerDependencies = {
 	setAgentRequestedManual: (requested: boolean) => void;
 	addHistory: (item: HistoryItem) => void;
 	getSessionToken: () => string;
+	getCurrentSessionToken: () => string | null;
 	clearSessionToken: () => void;
 	isRecording: boolean;
 	conversationRef: RefObject<ReturnType<typeof useConversation> | null>;
 	queryClient: QueryClient;
 	clearSelectionAndSearch: () => void;
 	// Dependencies for consolidated selection logic
-	getPlaceDetailsAction: (params: { placeId: string }) => Promise<{
+	getPlaceDetailsAction: (params: {
+		placeId: string;
+		sessionToken?: string;
+	}) => Promise<{
 		success: boolean;
 		details?: {
 			formattedAddress: string;
@@ -66,6 +70,7 @@ export function useActionHandler({
 	setAgentRequestedManual,
 	addHistory,
 	getSessionToken,
+	getCurrentSessionToken,
 	clearSessionToken,
 	isRecording,
 	conversationRef,
@@ -114,6 +119,7 @@ export function useActionHandler({
 			isRecording,
 			addHistory,
 			getSessionToken,
+			getCurrentSessionToken,
 			clearSessionToken,
 			conversationRef,
 			queryClient,
@@ -139,6 +145,7 @@ export function useActionHandler({
 			isRecording,
 			addHistory,
 			getSessionToken,
+			getCurrentSessionToken,
 			clearSessionToken,
 			conversationRef,
 			queryClient,

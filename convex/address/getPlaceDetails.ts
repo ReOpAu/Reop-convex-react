@@ -38,7 +38,10 @@ const extractComponent = (
 };
 
 export const getPlaceDetails = action({
-	args: { placeId: v.string() },
+	args: {
+		placeId: v.string(),
+		sessionToken: v.optional(v.string()),
+	},
 	returns: v.union(
 		v.object({
 			success: v.literal(true),
@@ -65,9 +68,14 @@ export const getPlaceDetails = action({
 		}
 		try {
 			// Places API (New): GET place by resource name with field mask header
-			const url = `https://places.googleapis.com/v1/places/${args.placeId}`;
+			const url = new URL(
+				`https://places.googleapis.com/v1/places/${args.placeId}`,
+			);
+			if (args.sessionToken) {
+				url.searchParams.set("sessionToken", args.sessionToken);
+			}
 
-			const res = await fetch(url, {
+			const res = await fetch(url.toString(), {
 				headers: {
 					"X-Goog-Api-Key": apiKey,
 					"X-Goog-FieldMask": GOOGLE_PLACES_FIELD_MASK,

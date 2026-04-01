@@ -36,6 +36,8 @@ interface ManualSearchFormProps {
 	disabled?: boolean;
 	onTyping?: (query: string) => void;
 	onAutocompleteStateChange?: (state: ManualAutocompleteState) => void;
+	getSessionToken: () => string;
+	clearSessionToken: () => void;
 }
 
 export interface ManualAutocompleteState {
@@ -46,7 +48,14 @@ export interface ManualAutocompleteState {
 }
 
 export const ManualSearchForm: React.FC<ManualSearchFormProps> = React.memo(
-	({ onSelect, disabled = false, onTyping, onAutocompleteStateChange }) => {
+	({
+		onSelect,
+		disabled = false,
+		onTyping,
+		onAutocompleteStateChange,
+		getSessionToken,
+		clearSessionToken,
+	}) => {
 		const [inputValue, setInputValue] = useState("");
 		const [selectedIndex, setSelectedIndex] = useState(-1);
 		const [showSuggestions, setShowSuggestions] = useState(false);
@@ -60,24 +69,6 @@ export const ManualSearchForm: React.FC<ManualSearchFormProps> = React.memo(
 
 		// Google's recommended minimum character threshold
 		const MIN_SEARCH_CHARS = 3;
-
-		// Session token for Google's autocomplete billing optimization
-		const sessionTokenRef = useRef<string | null>(null);
-
-		// Generate session token following Google's best practices
-		const getSessionToken = useCallback(() => {
-			if (!sessionTokenRef.current) {
-				sessionTokenRef.current = crypto.randomUUID();
-			}
-			return sessionTokenRef.current;
-		}, []);
-
-		// Clear session token when user selects a result (session complete)
-		const clearSessionToken = useCallback(() => {
-			if (sessionTokenRef.current) {
-				sessionTokenRef.current = null;
-			}
-		}, []);
 
 		// ManualSearchForm's own autocomplete query - completely independent
 		const getPlaceSuggestionsAction = useAction(
@@ -214,10 +205,9 @@ export const ManualSearchForm: React.FC<ManualSearchFormProps> = React.memo(
 				setSelectedIndex(-1);
 				setIsAddressSelected(true);
 				setInternalQuery(""); // Clear autocomplete query
-				clearSessionToken(); // Complete the session
 				isUserTypingRef.current = false;
 			},
-			[onSelect, clearSessionToken],
+			[onSelect],
 		);
 
 		const handleSubmit = useCallback(

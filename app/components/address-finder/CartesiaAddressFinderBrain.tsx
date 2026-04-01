@@ -61,6 +61,8 @@ export interface CartesiaAddressFinderBrainHandlers {
 		history: HistoryItem[];
 		searchHistory: SearchHistoryEntry[];
 		addressSelections: AddressSelectionEntry[];
+		getSessionToken: () => string;
+		clearSessionToken: () => void;
 	};
 
 	// Computed state
@@ -323,6 +325,7 @@ export function CartesiaAddressFinderBrain({
 		setAgentRequestedManual,
 		addHistory,
 		getSessionToken,
+		getCurrentSessionToken,
 		clearSessionToken,
 		isRecording,
 		conversationRef,
@@ -532,6 +535,8 @@ export function CartesiaAddressFinderBrain({
 			history,
 			searchHistory,
 			addressSelections,
+			getSessionToken,
+			clearSessionToken,
 		},
 
 		shouldShowSuggestions,

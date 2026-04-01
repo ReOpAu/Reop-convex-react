@@ -34,6 +34,7 @@ export interface ActionContext {
 
 	// Session management
 	getSessionToken: () => string;
+	getCurrentSessionToken: () => string | null;
 	clearSessionToken: () => void;
 
 	// Agent communication
@@ -44,7 +45,10 @@ export interface ActionContext {
 
 	// Actions
 	clearSelectionAndSearch: () => void;
-	getPlaceDetailsAction: (params: { placeId: string }) => Promise<{
+	getPlaceDetailsAction: (params: {
+		placeId: string;
+		sessionToken?: string;
+	}) => Promise<{
 		success: boolean;
 		details?: {
 			formattedAddress: string;

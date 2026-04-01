@@ -56,6 +56,8 @@ interface AddressFinderUIProps {
 		history: HistoryItem[];
 		searchHistory: SearchHistoryEntry[];
 		addressSelections: AddressSelectionEntry[];
+		getSessionToken: () => string;
+		clearSessionToken: () => void;
 	};
 
 	// Computed state
@@ -109,6 +111,8 @@ export function AddressFinderUI({
 		history,
 		searchHistory,
 		addressSelections,
+		getSessionToken,
+		clearSessionToken,
 	} = state;
 
 	const [showPreviousSearches, setShowPreviousSearches] = useState(false);
@@ -274,6 +278,8 @@ export function AddressFinderUI({
 								onAutocompleteStateChange={
 									handleManualAutocompleteStateChange
 								}
+								getSessionToken={getSessionToken}
+								clearSessionToken={clearSessionToken}
 							/>
 						</div>
 					) : (

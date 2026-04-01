@@ -43,6 +43,7 @@ export async function enrichSuggestion(
 	result: Suggestion,
 	queryClient: QueryClient,
 	getPlaceDetailsAction: ActionContext["getPlaceDetailsAction"],
+	getCurrentSessionToken: ActionContext["getCurrentSessionToken"],
 ): Promise<Suggestion> {
 	// Skip if already enriched or no placeId
 	if (!result.placeId) {
@@ -80,8 +81,10 @@ export async function enrichSuggestion(
 	// Fetch fresh data from API
 	logEnrichment("Fetching from API", result);
 	try {
+		const sessionToken = getCurrentSessionToken() ?? undefined;
 		const detailsRes = await getPlaceDetailsAction({
 			placeId: result.placeId,
+			sessionToken,
 		});
 
 		if (detailsRes.success && detailsRes.details) {

@@ -198,6 +198,7 @@ export function createSelectionActions(
 			result,
 			ctx.queryClient,
 			ctx.getPlaceDetailsAction,
+			ctx.getCurrentSessionToken,
 		);
 		const preparedResult = preserveValidatedAddressMarkers(
 			result,
