@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { z } from "zod";
 import { type ToolName, toolDefinitions } from "../ai/tools.config.js";
 import {
 	AGENT_TOOL_MATRIX,
@@ -46,9 +46,7 @@ async function syncAgentConfiguration(agentKey: AgentKey, dryRun = false) {
 		// ElevenLabs uses type: "client" (not "function") with flat structure
 		const apiTools = assignedTools.map((toolName) => {
 			const toolDef = toolDefinitions[toolName];
-			const schema = zodToJsonSchema(toolDef.parametersSchema, {
-				$refStrategy: "none",
-			});
+			const schema = z.toJSONSchema(toolDef.parametersSchema);
 			const schemaObj = schema as any; // Type assertion for schema properties
 			return {
 				type: "client" as const,

@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import Markdown from "react-markdown";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -14,11 +16,11 @@ const CONVEX_SITE_URL = import.meta.env.VITE_CONVEX_URL?.replace(
 
 export default function Chat() {
 	const { getToken } = useAuth();
-	const { messages, input, handleInputChange, handleSubmit, isLoading } =
-		useChat({
-			maxSteps: 10,
+	const [input, setInput] = useState("");
+	const { messages, sendMessage, status } = useChat({
+		transport: new DefaultChatTransport({
 			api: `${CONVEX_SITE_URL}/api/chat`,
-			fetch: async (input, init) => {
+			fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
 				const token = await getToken({ template: "convex" });
 				if (!token) {
 					throw new Error("Authentication required");
@@ -32,7 +34,21 @@ export default function Chat() {
 					},
 				});
 			},
-		});
+		}),
+	});
+	const isLoading = status === "submitted" || status === "streaming";
+
+	async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+
+		const trimmedInput = input.trim();
+		if (!trimmedInput || isLoading) {
+			return;
+		}
+
+		await sendMessage({ text: trimmedInput });
+		setInput("");
+	}
 
 	return (
 		<div className="flex flex-col w-full py-24 justify-center items-center">
@@ -82,10 +98,10 @@ export default function Chat() {
 						className="w-full border-0 shadow-none !ring-transparent "
 						value={input}
 						placeholder="Say something..."
-						onChange={handleInputChange}
+						onChange={(event) => setInput(event.target.value)}
 					/>
 					<div className="flex justify-end gap-3 items-center w-full">
-						<Button size="sm" className="text-xs">
+						<Button size="sm" className="text-xs" disabled={isLoading}>
 							Send
 						</Button>
 					</div>

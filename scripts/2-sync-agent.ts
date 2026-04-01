@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { z } from "zod";
 import { toolDefinitions } from "../ai/tools.config.js";
 import { getElevenLabsConfig } from "./env-loader.js";
 
@@ -25,9 +25,7 @@ async function syncAgent(dryRun = false) {
 		console.log("🔧 Generating ElevenLabs client tool definitions...");
 		const elevenLabsTools = Object.entries(toolDefinitions).map(
 			([name, def]) => {
-				const schema = zodToJsonSchema(def.parametersSchema, {
-					$refStrategy: "none",
-				});
+				const schema = z.toJSONSchema(def.parametersSchema);
 				const schemaObj = schema as any;
 
 				// Convert to ElevenLabs client tool format

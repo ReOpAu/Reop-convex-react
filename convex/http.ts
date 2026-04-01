@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { paymentWebhook } from "./subscriptions";
@@ -275,10 +275,11 @@ export const chat = httpAction(async (ctx, request) => {
 
 	const result = streamText({
 		model: openai("gpt-4o"),
-		messages: body.messages,
+		messages: await convertToModelMessages(body.messages),
 	});
 
-	return result.toDataStreamResponse({
+	return result.toUIMessageStreamResponse({
+		originalMessages: body.messages,
 		headers: {
 			...corsHeaders(request, "POST, OPTIONS"),
 		},

@@ -22,10 +22,10 @@ export const listingFormSchema = z
 	.object({
 		// Basic listing info
 		listingType: z.enum(["buyer", "seller"], {
-			required_error: "Please select whether you are a buyer or seller",
+			error: "Please select whether you are a buyer or seller",
 		}),
 		subtype: z.enum(["street", "suburb"], {
-			required_error: "Please select listing subtype",
+			error: "Please select listing subtype",
 		}),
 		headline: z
 			.string()
@@ -39,7 +39,7 @@ export const listingFormSchema = z
 		// Location
 		suburb: z.string().min(2, "Suburb is required"),
 		state: z.enum(["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"], {
-			required_error: "Please select a state",
+			error: "Please select a state",
 		}),
 		postcode: z.string().regex(/^\d{4}$/, "Postcode must be 4 digits"),
 		street: z.string().optional(),
