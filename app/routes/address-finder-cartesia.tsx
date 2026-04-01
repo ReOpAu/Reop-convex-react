@@ -1,10 +1,24 @@
+import { getAuth } from "@clerk/react-router/ssr.server";
+import { redirect } from "react-router";
 import { AddressFinderUI } from "~/components/address-finder/AddressFinderUI";
 import { CartesiaAddressFinderBrain } from "~/components/address-finder/CartesiaAddressFinderBrain";
 import { PublicLayout } from "~/components/layout/PublicLayout";
+import type { Route } from "./+types/address-finder-cartesia";
 
-export default function AddressFinderCartesia() {
+export async function loader(args: Route.LoaderArgs) {
+	const { userId } = await getAuth(args);
+	if (!userId) {
+		throw redirect("/sign-in");
+	}
+
+	return { isSignedIn: true };
+}
+
+export default function AddressFinderCartesia({
+	loaderData,
+}: Route.ComponentProps) {
 	return (
-		<PublicLayout>
+		<PublicLayout loaderData={loaderData}>
 			<CartesiaAddressFinderBrain>
 				{(handlers) => (
 					<AddressFinderUI

@@ -12,8 +12,6 @@ import {
 import { ListingsErrorBoundary } from "../components/ListingsErrorBoundary";
 import { MatchDetailSkeleton } from "../components/skeletons";
 import { useMatchDetails } from "../data/listingsService";
-import type { ConvexListing } from "../types";
-import { calculateListingDistance, isBuyerListing } from "../utils";
 import {
 	calculateLocationInfo,
 	calculatePriceComparison,
@@ -66,11 +64,7 @@ const MatchDetailPage: React.FC = () => {
 		originalListing,
 		matchedListing,
 	);
-	const distanceRaw =
-		originalListing && matchedListing
-			? calculateListingDistance(originalListing, matchedListing)
-			: undefined;
-	const distance = distanceRaw ?? undefined;
+	const distance = matchDetails?.distance;
 	const locationInfo = calculateLocationInfo(
 		originalListing,
 		matchedListing,

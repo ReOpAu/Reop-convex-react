@@ -1,5 +1,4 @@
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import { useUser } from "@clerk/clerk-react";
 import { useMutation } from "convex/react";
 import { AlertCircle, Home, Search } from "lucide-react";
@@ -119,7 +118,6 @@ export const CreateBuyerListingForm: React.FC<CreateBuyerListingFormProps> = ({
 		try {
 			const listingData = {
 				listingType: "buyer" as const,
-				userId: user.id as Id<"users">,
 				suburb: formData.suburb,
 				state: formData.state,
 				postcode: formData.postcode,

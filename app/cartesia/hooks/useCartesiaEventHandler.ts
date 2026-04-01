@@ -37,6 +37,10 @@ export function useCartesiaEventHandler({
 		enabled ? { sessionId } : "skip",
 	);
 
+	useEffect(() => {
+		lastVersionRef.current = 0;
+	}, [sessionId]);
+
 	// Process new updates when the subscription fires
 	useEffect(() => {
 		if (!latestUpdate || latestUpdate.version <= lastVersionRef.current) {

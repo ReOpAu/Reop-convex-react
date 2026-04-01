@@ -2,9 +2,8 @@ import type React from "react";
 import { Link } from "react-router";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Badge } from "../../../components/ui/badge";
-import { Card, CardContent, CardFooter } from "../../../components/ui/card";
+import { Card, CardContent } from "../../../components/ui/card";
 import type { ConvexListing } from "../types";
-import { isBuyerListing } from "../utils";
 import { generateListingUrl } from "../utils/urlHelpers";
 import { Map } from "./Map";
 import { PropertyIcons } from "./PropertyIcons";
@@ -16,6 +15,11 @@ export interface ListingCardProps {
 }
 
 export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
+	const hasExactLocation =
+		listing.hasExactLocation !== false &&
+		typeof listing.latitude === "number" &&
+		typeof listing.longitude === "number";
+
 	// Helper functions
 	const formatPrice = () => {
 		if (!listing.priceMin || !listing.priceMax) return "Price not specified";
@@ -64,16 +68,24 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
 			<Link to={generateListingUrl(listing)} className="block">
 				{/* Map preview */}
 				<div className="h-64 relative -m-6 mb-6">
-					<Map
-						location={{
-							latitude: listing.latitude,
-							longitude: listing.longitude,
-						}}
-						zoom={15}
-						interactive={false}
-						listings={[listing]}
-						className="w-full h-full rounded-t-2xl"
-					/>
+					{hasExactLocation ? (
+						<Map
+							location={{
+								latitude: listing.latitude!,
+								longitude: listing.longitude!,
+							}}
+							zoom={15}
+							interactive={false}
+							listings={[listing]}
+							className="w-full h-full rounded-t-2xl"
+						/>
+					) : (
+						<div className="flex h-full items-end rounded-t-2xl bg-gradient-to-br from-slate-100 via-white to-slate-200 p-6">
+							<div className="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
+								Approximate suburb shown only
+							</div>
+						</div>
+					)}
 				</div>
 
 				<CardContent className="p-6 space-y-4">

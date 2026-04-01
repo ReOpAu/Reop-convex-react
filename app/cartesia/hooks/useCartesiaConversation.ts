@@ -23,6 +23,7 @@ const BASE_RECONNECT_DELAY_MS = 1_000;
 
 interface UseCartesiaConversationOptions {
 	agentId: string;
+	sessionId: string | null;
 	/** Resolves an auth token/key. Called each time startSession is invoked. */
 	getAuthToken: () => Promise<string | null>;
 	onMediaOutput?: (base64Data: string) => void;
@@ -32,13 +33,14 @@ interface UseCartesiaConversationOptions {
 interface UseCartesiaConversationReturn {
 	status: CartesiaConnectionStatus;
 	streamId: string | null;
-	startSession: () => void;
+	startSession: (sessionId?: string) => void;
 	endSession: () => void;
 	sendMediaInput: (base64Data: string) => void;
 }
 
 export function useCartesiaConversation({
 	agentId,
+	sessionId,
 	getAuthToken,
 	onMediaOutput,
 	onClear,
@@ -52,6 +54,7 @@ export function useCartesiaConversation({
 	const reconnectAttemptRef = useRef(0);
 	const intentionalCloseRef = useRef(false);
 	const lastAuthTokenRef = useRef<string | null>(null);
+	const sessionIdRef = useRef<string | null>(sessionId);
 
 	// Store callbacks in refs to avoid stale closures
 	const onMediaOutputRef = useRef(onMediaOutput);
@@ -67,6 +70,9 @@ export function useCartesiaConversation({
 	useEffect(() => {
 		getAuthTokenRef.current = getAuthToken;
 	}, [getAuthToken]);
+	useEffect(() => {
+		sessionIdRef.current = sessionId;
+	}, [sessionId]);
 
 	const clearKeepalive = useCallback(() => {
 		if (keepaliveRef.current) {
@@ -138,6 +144,9 @@ export function useCartesiaConversation({
 						config: {
 							input_format: "pcm_44100",
 						},
+						metadata: sessionIdRef.current
+							? { session_id: sessionIdRef.current }
+							: undefined,
 					}),
 				);
 
@@ -178,8 +187,16 @@ export function useCartesiaConversation({
 		[agentId, handleMessage, startKeepalive, clearKeepalive],
 	);
 
-	const startSession = useCallback(async () => {
+	const startSession = useCallback(async (nextSessionId?: string) => {
 		reconnectAttemptRef.current = 0;
+		const activeSessionId = nextSessionId ?? sessionIdRef.current;
+
+		if (!activeSessionId) {
+			console.error("[Cartesia] Missing sessionId");
+			setStatus("error");
+			return;
+		}
+		sessionIdRef.current = activeSessionId;
 
 		const token = await getAuthTokenRef.current();
 		if (!token) {

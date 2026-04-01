@@ -4,6 +4,13 @@ import type React from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { Button } from "../../../../components/ui/button";
 import { EditListingForm } from "../../../../features/listings/components/forms";
+import { requireAdminRoute } from "../../../../utils/auth.server";
+import type { Route } from "./+types/$id";
+
+export async function loader(args: Route.LoaderArgs) {
+	await requireAdminRoute(args);
+	return { isAdmin: true };
+}
 
 const AdminEditListingPage: React.FC = () => {
 	const navigate = useNavigate();

@@ -1,8 +1,9 @@
 import { v } from "convex/values";
 import ngeohash from "ngeohash";
 import { PRICE_OPTIONS } from "../shared/constants/priceOptions";
-import { api } from "./_generated/api";
-import { action, mutation } from "./_generated/server";
+import { api, internal } from "./_generated/api";
+import { action, internalMutation } from "./_generated/server";
+import { requireAdmin } from "./utils/auth";
 
 // Sample data for clean, realistic listings - expanded variety
 const SUBURBS = [
@@ -202,7 +203,7 @@ function randomPrice(): { min: number; max: number } {
 }
 
 // Create seed listing mutation
-export const createSeedListing = mutation({
+export const createSeedListing = internalMutation({
 	args: {
 		listing: v.object({
 			listingType: v.union(v.literal("buyer"), v.literal("seller")),
@@ -283,7 +284,7 @@ export const createSeedListing = mutation({
 });
 
 // Create seed user
-export const createSeedUser = mutation({
+export const createSeedUser = internalMutation({
 	args: {
 		email: v.string(),
 		name: v.string(),
@@ -305,13 +306,14 @@ export const seedListings = action({
 		listingCount: v.optional(v.number()),
 	},
 	handler: async (ctx, args) => {
+		await requireAdmin(ctx);
 		const userCount = args.userCount ?? 10;
 		const listingCount = args.listingCount ?? 200;
 
 		// Create users
 		const userIds = [];
 		for (let i = 0; i < userCount; i++) {
-			const userId = await ctx.runMutation(api.seedListings.createSeedUser, {
+			const userId = await ctx.runMutation(internal.seedListings.createSeedUser, {
 				email: `user${i + 1}@example.com`,
 				name: `User ${i + 1}`,
 				tokenIdentifier: `seed_user_${i + 1}`,
@@ -341,7 +343,7 @@ export const seedListings = action({
 			const buyerGeohash = ngeohash.encode(baseLat, baseLng, 7);
 			const buyerType = Math.random() < 0.6 ? "suburb" : "street";
 
-			await ctx.runMutation(api.seedListings.createSeedListing, {
+			await ctx.runMutation(internal.seedListings.createSeedListing, {
 				listing: {
 					listingType: "buyer" as const,
 					userId: getRandomElement(userIds),
@@ -382,7 +384,7 @@ export const seedListings = action({
 			const sellerGeohash = ngeohash.encode(sellerLat, sellerLng, 7);
 			const streetNum = Math.floor(Math.random() * 200) + 1;
 
-			await ctx.runMutation(api.seedListings.createSeedListing, {
+			await ctx.runMutation(internal.seedListings.createSeedListing, {
 				listing: {
 					listingType: "seller" as const,
 					userId: getRandomElement(userIds),
@@ -464,7 +466,7 @@ export const seedListings = action({
 
 			if (isBuyer) {
 				const buyerType = Math.random() < 0.7 ? "suburb" : "street";
-				await ctx.runMutation(api.seedListings.createSeedListing, {
+				await ctx.runMutation(internal.seedListings.createSeedListing, {
 					listing: {
 						...baseListing,
 						buyerType,
@@ -476,7 +478,7 @@ export const seedListings = action({
 				});
 			} else {
 				const streetNum = Math.floor(Math.random() * 200) + 1;
-				await ctx.runMutation(api.seedListings.createSeedListing, {
+				await ctx.runMutation(internal.seedListings.createSeedListing, {
 					listing: {
 						...baseListing,
 						address: `${streetNum} Main Street, ${location.suburb} ${location.state} ${location.postcode}`,
@@ -501,8 +503,12 @@ export const seedListings = action({
 export const deleteSampleData = action({
 	args: {},
 	handler: async (ctx) => {
+		await requireAdmin(ctx);
 		// Delete sample listings
-		const listings = await ctx.runQuery(api.listings.listListings, {});
+		const listings = await ctx.runQuery(api.listings.listListingsAdmin, {
+			page: 1,
+			pageSize: 10_000,
+		});
 		let deletedListings = 0;
 		for (const listing of listings.listings) {
 			if (listing.sample) {
@@ -538,6 +544,7 @@ export const deleteAllListings = action({
 		message: string;
 		deletedListings: number;
 	}> => {
+		await requireAdmin(ctx);
 		const result = await ctx.runMutation(api.listings.clearAllListings, {});
 		return {
 			success: true,

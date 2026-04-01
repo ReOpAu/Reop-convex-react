@@ -1,13 +1,16 @@
 import { getAuth } from "@clerk/react-router/ssr.server";
-import { useNavigate } from "react-router";
+import { redirect, useNavigate } from "react-router";
 import { PublicLayout } from "~/components/layout/PublicLayout";
 import { CreateListingForm } from "~/features/listings/components/forms/CreateListingForm";
 import type { Route } from "./+types/create";
 
 export async function loader(args: Route.LoaderArgs) {
 	const { userId } = await getAuth(args);
+	if (!userId) {
+		throw redirect("/sign-in");
+	}
 	return {
-		isSignedIn: !!userId,
+		isSignedIn: true,
 	};
 }
 

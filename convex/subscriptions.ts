@@ -3,8 +3,58 @@ import { v } from "convex/values";
 import { Webhook, WebhookVerificationError } from "standardwebhooks";
 import { api } from "./_generated/api";
 import { action, httpAction, mutation, query } from "./_generated/server";
+import {
+	findUserByIdentifier,
+	getCurrentUser,
+	requireIdentity,
+} from "./utils/auth";
 
-const createCheckout = async ({
+type PolarServer = "sandbox" | "production";
+type PolarEventData = Record<string, any>;
+
+function getPolarServer(): PolarServer {
+	return (process.env.POLAR_SERVER as PolarServer) || "sandbox";
+}
+
+function createPolarClient() {
+	if (!process.env.POLAR_ACCESS_TOKEN) {
+		throw new Error("POLAR_ACCESS_TOKEN is not configured");
+	}
+
+	return new Polar({
+		server: getPolarServer(),
+		accessToken: process.env.POLAR_ACCESS_TOKEN,
+	});
+}
+
+function serializePlans(result: {
+	items: Array<{
+		id: string;
+		name: string;
+		description: string | null;
+		isRecurring: boolean;
+		prices: Array<any>;
+	}>;
+	pagination: unknown;
+}) {
+	return {
+		items: result.items.map((item) => ({
+			id: item.id,
+			name: item.name,
+			description: item.description,
+			isRecurring: item.isRecurring,
+			prices: item.prices.map((price: any) => ({
+				id: price.id,
+				amount: price.priceAmount,
+				currency: price.priceCurrency,
+				interval: price.recurringInterval,
+			})),
+		})),
+		pagination: result.pagination,
+	};
+}
+
+async function createCheckout({
 	customerEmail,
 	productPriceId,
 	successUrl,
@@ -14,23 +64,19 @@ const createCheckout = async ({
 	productPriceId: string;
 	successUrl: string;
 	metadata?: Record<string, string>;
-}) => {
-	if (!process.env.POLAR_ACCESS_TOKEN) {
-		throw new Error("POLAR_ACCESS_TOKEN is not configured");
+}) {
+	const polar = createPolarClient();
+
+	if (!process.env.POLAR_ORGANIZATION_ID) {
+		throw new Error("POLAR_ORGANIZATION_ID is not configured");
 	}
 
-	const polar = new Polar({
-		server: (process.env.POLAR_SERVER as "sandbox" | "production") || "sandbox",
-		accessToken: process.env.POLAR_ACCESS_TOKEN,
-	});
-
-	// Get product ID from price ID
 	const { result: productsResult } = await polar.products.list({
 		organizationId: process.env.POLAR_ORGANIZATION_ID,
 		isArchived: false,
 	});
 
-	let productId = null;
+	let productId: string | null = null;
 	for (const product of productsResult.items) {
 		const hasPrice = product.prices.some(
 			(price: any) => price.id === productPriceId,
@@ -45,99 +91,147 @@ const createCheckout = async ({
 		throw new Error(`Product not found for price ID: ${productPriceId}`);
 	}
 
-	const checkoutData = {
+	const result = await polar.checkouts.create({
 		products: [productId],
-		successUrl: successUrl,
-		customerEmail: customerEmail,
+		successUrl,
+		customerEmail,
 		metadata: {
 			...metadata,
 			priceId: productPriceId,
 		},
-	};
+	});
 
-	const result = await polar.checkouts.create(checkoutData);
 	return result;
-};
+}
+
+async function listSubscriptionsForUserIdentifiers(
+	ctx: any,
+	identifiers: string[],
+) {
+	const uniqueById = new Map<string, any>();
+
+	for (const identifier of identifiers) {
+		const subscriptions = await ctx.db
+			.query("subscriptions")
+			.withIndex("userId", (q: any) => q.eq("userId", identifier))
+			.collect();
+
+		for (const subscription of subscriptions) {
+			uniqueById.set(subscription._id, subscription);
+		}
+	}
+
+	return [...uniqueById.values()].sort((a, b) => {
+		const aRank = a.currentPeriodEnd ?? a.startedAt ?? a._creationTime;
+		const bRank = b.currentPeriodEnd ?? b.startedAt ?? b._creationTime;
+		return bRank - aRank;
+	});
+}
+
+function pickPrimarySubscription(subscriptions: any[]) {
+	return (
+		subscriptions.find((subscription) => subscription.status === "active") ??
+		subscriptions[0] ??
+		null
+	);
+}
+
+function buildSubscriptionFields(data: PolarEventData, canonicalUserId?: string) {
+	return {
+		polarId: data.id,
+		polarPriceId: data.price_id,
+		currency: data.currency,
+		interval: data.recurring_interval,
+		userId: canonicalUserId ?? data.metadata?.userId,
+		status: data.status,
+		currentPeriodStart: data.current_period_start
+			? new Date(data.current_period_start).getTime()
+			: undefined,
+		currentPeriodEnd: data.current_period_end
+			? new Date(data.current_period_end).getTime()
+			: undefined,
+		cancelAtPeriodEnd: data.cancel_at_period_end,
+		amount: data.amount,
+		startedAt: data.started_at ? new Date(data.started_at).getTime() : undefined,
+		endedAt: data.ended_at ? new Date(data.ended_at).getTime() : undefined,
+		canceledAt: data.canceled_at
+			? new Date(data.canceled_at).getTime()
+			: undefined,
+		customerCancellationReason:
+			data.customer_cancellation_reason || undefined,
+		customerCancellationComment:
+			data.customer_cancellation_comment || undefined,
+		metadata: data.metadata || {},
+		customFieldData: data.custom_field_data || {},
+		customerId: data.customer_id,
+	};
+}
+
+async function resolveCanonicalSubscriptionUserId(ctx: any, rawUserId?: string) {
+	if (!rawUserId) {
+		return undefined;
+	}
+
+	const user = await findUserByIdentifier(ctx, rawUserId);
+	return user?.tokenIdentifier ?? rawUserId;
+}
+
+async function upsertSubscriptionByPolarId(
+	ctx: any,
+	data: PolarEventData,
+	canonicalUserId?: string,
+) {
+	const existingSubscriptions = data.id
+		? await ctx.db
+				.query("subscriptions")
+				.withIndex("polarId", (q: any) => q.eq("polarId", data.id))
+				.collect()
+		: [];
+
+	const [primary, ...duplicates] = existingSubscriptions;
+	for (const duplicate of duplicates) {
+		await ctx.db.delete(duplicate._id);
+	}
+
+	const fields = buildSubscriptionFields(data, canonicalUserId);
+
+	if (primary) {
+		await ctx.db.patch(primary._id, fields);
+		return primary._id;
+	}
+
+	return await ctx.db.insert("subscriptions", fields);
+}
 
 export const getAvailablePlansQuery = query({
-	handler: async (ctx) => {
-		if (!process.env.POLAR_ACCESS_TOKEN) {
-			throw new Error("POLAR_ACCESS_TOKEN is not configured");
-		}
-
+	handler: async () => {
 		if (!process.env.POLAR_ORGANIZATION_ID) {
 			throw new Error("POLAR_ORGANIZATION_ID is not configured");
 		}
 
-		const polar = new Polar({
-			server: "sandbox",
-			accessToken: process.env.POLAR_ACCESS_TOKEN,
-		});
-
+		const polar = createPolarClient();
 		const { result } = await polar.products.list({
 			organizationId: process.env.POLAR_ORGANIZATION_ID,
 			isArchived: false,
 		});
 
-		// Transform the data to remove Date objects and keep only needed fields
-		const cleanedItems = result.items.map((item) => ({
-			id: item.id,
-			name: item.name,
-			description: item.description,
-			isRecurring: item.isRecurring,
-			prices: item.prices.map((price: any) => ({
-				id: price.id,
-				amount: price.priceAmount,
-				currency: price.priceCurrency,
-				interval: price.recurringInterval,
-			})),
-		}));
-
-		return {
-			items: cleanedItems,
-			pagination: result.pagination,
-		};
+		return serializePlans(result);
 	},
 });
 
 export const getAvailablePlans = action({
-	handler: async (ctx) => {
-		if (!process.env.POLAR_ACCESS_TOKEN) {
-			throw new Error("POLAR_ACCESS_TOKEN is not configured");
-		}
-
+	handler: async () => {
 		if (!process.env.POLAR_ORGANIZATION_ID) {
 			throw new Error("POLAR_ORGANIZATION_ID is not configured");
 		}
 
-		const polar = new Polar({
-			server: "sandbox",
-			accessToken: process.env.POLAR_ACCESS_TOKEN,
-		});
-
+		const polar = createPolarClient();
 		const { result } = await polar.products.list({
 			organizationId: process.env.POLAR_ORGANIZATION_ID,
 			isArchived: false,
 		});
 
-		// Transform the data to remove Date objects and keep only needed fields
-		const cleanedItems = result.items.map((item) => ({
-			id: item.id,
-			name: item.name,
-			description: item.description,
-			isRecurring: item.isRecurring,
-			prices: item.prices.map((price: any) => ({
-				id: price.id,
-				amount: price.priceAmount,
-				currency: price.priceCurrency,
-				interval: price.recurringInterval,
-			})),
-		}));
-
-		return {
-			items: cleanedItems,
-			pagination: result.pagination,
-		};
+		return serializePlans(result);
 	},
 });
 
@@ -146,27 +240,14 @@ export const createCheckoutSession = action({
 		priceId: v.string(),
 	},
 	handler: async (ctx, args) => {
-		const identity = await ctx.auth.getUserIdentity();
-		if (!identity) {
-			throw new Error("Not authenticated");
-		}
-
-		// First check if user exists
-		let user = await ctx.runQuery(api.users.findUserByToken, {
-			tokenIdentifier: identity.subject,
-		});
-
-		// If user doesn't exist, create them
-		if (!user) {
-			user = await ctx.runMutation(api.users.upsertUser);
-
-			if (!user) {
-				throw new Error("Failed to create user");
-			}
+		await requireIdentity(ctx);
+		const user = await ctx.runMutation(api.users.upsertUser);
+		if (!user?.email) {
+			throw new Error("Authenticated user is missing an email address");
 		}
 
 		const checkout = await createCheckout({
-			customerEmail: user.email!,
+			customerEmail: user.email,
 			productPriceId: args.priceId,
 			successUrl: `${process.env.FRONTEND_URL}/success`,
 			metadata: {
@@ -179,270 +260,98 @@ export const createCheckoutSession = action({
 });
 
 export const checkUserSubscriptionStatus = query({
-	args: {
-		userId: v.optional(v.string()),
-	},
-	handler: async (ctx, args) => {
-		let tokenIdentifier: string;
-
-		if (args.userId) {
-			// Use provided userId directly as tokenIdentifier (they are the same)
-			tokenIdentifier = args.userId;
-		} else {
-			// Fall back to auth context
-			const identity = await ctx.auth.getUserIdentity();
-			if (!identity) {
-				return { hasActiveSubscription: false };
-			}
-			tokenIdentifier = identity.subject;
-		}
-
-		const user = await ctx.db
-			.query("users")
-			.withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
-			.unique();
-
+	args: {},
+	handler: async (ctx) => {
+		const user = await getCurrentUser(ctx);
 		if (!user) {
 			return { hasActiveSubscription: false };
 		}
 
-		const subscription = await ctx.db
-			.query("subscriptions")
-			.withIndex("userId", (q) => q.eq("userId", user.tokenIdentifier))
-			.first();
+		const subscriptions = await listSubscriptionsForUserIdentifiers(ctx, [
+			user.tokenIdentifier,
+			user.subject ?? "",
+		].filter(Boolean));
 
-		const hasActiveSubscription = subscription?.status === "active";
-		return { hasActiveSubscription };
-	},
-});
+		const activeSubscription = subscriptions.find(
+			(subscription) => subscription.status === "active",
+		);
 
-export const checkUserSubscriptionStatusByClerkId = query({
-	args: {
-		clerkUserId: v.string(),
-	},
-	handler: async (ctx, args) => {
-		// Find user by Clerk user ID (this assumes the tokenIdentifier contains the Clerk user ID)
-		// In Clerk, the subject is typically in the format "user_xxxxx" where xxxxx is the Clerk user ID
-		const tokenIdentifier = `user_${args.clerkUserId}`;
-
-		let user = await ctx.db
-			.query("users")
-			.withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
-			.unique();
-
-		// If not found with user_ prefix, try the raw userId
-		if (!user) {
-			user = await ctx.db
-				.query("users")
-				.withIndex("by_token", (q) => q.eq("tokenIdentifier", args.clerkUserId))
-				.unique();
-		}
-
-		if (!user) {
-			return { hasActiveSubscription: false };
-		}
-
-		const subscription = await ctx.db
-			.query("subscriptions")
-			.withIndex("userId", (q) => q.eq("userId", user.tokenIdentifier))
-			.first();
-
-		const hasActiveSubscription = subscription?.status === "active";
-		return { hasActiveSubscription };
+		return {
+			hasActiveSubscription: Boolean(activeSubscription),
+		};
 	},
 });
 
 export const fetchUserSubscription = query({
+	args: {},
 	handler: async (ctx) => {
-		const identity = await ctx.auth.getUserIdentity();
-
-		if (!identity) {
-			return null;
-		}
-
-		const user = await ctx.db
-			.query("users")
-			.withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
-			.unique();
-
+		const user = await getCurrentUser(ctx);
 		if (!user) {
 			return null;
 		}
 
-		const subscription = await ctx.db
-			.query("subscriptions")
-			.withIndex("userId", (q) => q.eq("userId", user.tokenIdentifier))
-			.first();
+		const subscriptions = await listSubscriptionsForUserIdentifiers(ctx, [
+			user.tokenIdentifier,
+			user.subject ?? "",
+		].filter(Boolean));
 
-		return subscription;
+		return pickPrimarySubscription(subscriptions);
 	},
 });
 
 export const handleWebhookEvent = mutation({
 	args: {
+		polarEventId: v.string(),
 		body: v.any(),
 	},
 	handler: async (ctx, args) => {
-		// Extract event type from webhook payload
-		const eventType = args.body.type;
+		const existingEvent = await ctx.db
+			.query("webhookEvents")
+			.withIndex("polarEventId", (q) => q.eq("polarEventId", args.polarEventId))
+			.first();
 
-		// Store webhook event
+		if (existingEvent) {
+			return { duplicate: true };
+		}
+
+		const eventType = args.body.type;
+		const eventData = args.body.data ?? {};
+		const canonicalUserId = await resolveCanonicalSubscriptionUserId(
+			ctx,
+			eventData.metadata?.userId,
+		);
+
 		await ctx.db.insert("webhookEvents", {
 			type: eventType,
-			polarEventId: args.body.data.id,
-			createdAt: args.body.data.created_at,
-			modifiedAt: args.body.data.modified_at || args.body.data.created_at,
-			data: args.body.data,
+			polarEventId: args.polarEventId,
+			createdAt: eventData.created_at ?? new Date().toISOString(),
+			modifiedAt:
+				eventData.modified_at ?? eventData.created_at ?? new Date().toISOString(),
+			data: args.body,
 		});
 
 		switch (eventType) {
 			case "subscription.created":
-				// Insert new subscription
-				await ctx.db.insert("subscriptions", {
-					polarId: args.body.data.id,
-					polarPriceId: args.body.data.price_id,
-					currency: args.body.data.currency,
-					interval: args.body.data.recurring_interval,
-					userId: args.body.data.metadata.userId,
-					status: args.body.data.status,
-					currentPeriodStart: new Date(
-						args.body.data.current_period_start,
-					).getTime(),
-					currentPeriodEnd: new Date(
-						args.body.data.current_period_end,
-					).getTime(),
-					cancelAtPeriodEnd: args.body.data.cancel_at_period_end,
-					amount: args.body.data.amount,
-					startedAt: new Date(args.body.data.started_at).getTime(),
-					endedAt: args.body.data.ended_at
-						? new Date(args.body.data.ended_at).getTime()
-						: undefined,
-					canceledAt: args.body.data.canceled_at
-						? new Date(args.body.data.canceled_at).getTime()
-						: undefined,
-					customerCancellationReason:
-						args.body.data.customer_cancellation_reason || undefined,
-					customerCancellationComment:
-						args.body.data.customer_cancellation_comment || undefined,
-					metadata: args.body.data.metadata || {},
-					customFieldData: args.body.data.custom_field_data || {},
-					customerId: args.body.data.customer_id,
-				});
+			case "subscription.updated":
+			case "subscription.active":
+			case "subscription.canceled":
+			case "subscription.uncanceled":
+			case "subscription.revoked":
+				await upsertSubscriptionByPolarId(ctx, eventData, canonicalUserId);
 				break;
-
-			case "subscription.updated": {
-				// Find existing subscription
-				const existingSub = await ctx.db
-					.query("subscriptions")
-					.withIndex("polarId", (q) => q.eq("polarId", args.body.data.id))
-					.first();
-
-				if (existingSub) {
-					await ctx.db.patch(existingSub._id, {
-						amount: args.body.data.amount,
-						status: args.body.data.status,
-						currentPeriodStart: new Date(
-							args.body.data.current_period_start,
-						).getTime(),
-						currentPeriodEnd: new Date(
-							args.body.data.current_period_end,
-						).getTime(),
-						cancelAtPeriodEnd: args.body.data.cancel_at_period_end,
-						metadata: args.body.data.metadata || {},
-						customFieldData: args.body.data.custom_field_data || {},
-					});
-				}
-				break;
-			}
-
-			case "subscription.active": {
-				// Find and update subscription
-				const activeSub = await ctx.db
-					.query("subscriptions")
-					.withIndex("polarId", (q) => q.eq("polarId", args.body.data.id))
-					.first();
-
-				if (activeSub) {
-					await ctx.db.patch(activeSub._id, {
-						status: args.body.data.status,
-						startedAt: new Date(args.body.data.started_at).getTime(),
-					});
-				}
-				break;
-			}
-
-			case "subscription.canceled": {
-				// Find and update subscription
-				const canceledSub = await ctx.db
-					.query("subscriptions")
-					.withIndex("polarId", (q) => q.eq("polarId", args.body.data.id))
-					.first();
-
-				if (canceledSub) {
-					await ctx.db.patch(canceledSub._id, {
-						status: args.body.data.status,
-						canceledAt: args.body.data.canceled_at
-							? new Date(args.body.data.canceled_at).getTime()
-							: undefined,
-						customerCancellationReason:
-							args.body.data.customer_cancellation_reason || undefined,
-						customerCancellationComment:
-							args.body.data.customer_cancellation_comment || undefined,
-					});
-				}
-				break;
-			}
-
-			case "subscription.uncanceled": {
-				// Find and update subscription
-				const uncanceledSub = await ctx.db
-					.query("subscriptions")
-					.withIndex("polarId", (q) => q.eq("polarId", args.body.data.id))
-					.first();
-
-				if (uncanceledSub) {
-					await ctx.db.patch(uncanceledSub._id, {
-						status: args.body.data.status,
-						cancelAtPeriodEnd: false,
-						canceledAt: undefined,
-						customerCancellationReason: undefined,
-						customerCancellationComment: undefined,
-					});
-				}
-				break;
-			}
-
-			case "subscription.revoked": {
-				// Find and update subscription
-				const revokedSub = await ctx.db
-					.query("subscriptions")
-					.withIndex("polarId", (q) => q.eq("polarId", args.body.data.id))
-					.first();
-
-				if (revokedSub) {
-					await ctx.db.patch(revokedSub._id, {
-						status: "revoked",
-						endedAt: args.body.data.ended_at
-							? new Date(args.body.data.ended_at).getTime()
-							: undefined,
-					});
-				}
-				break;
-			}
 
 			case "order.created":
-				// Orders are handled through the subscription events
 				break;
 
 			default:
 				console.warn(`Unhandled event type: ${eventType}`);
 				break;
 		}
+
+		return { duplicate: false };
 	},
 });
 
-// Use our own validation similar to validateEvent from @polar-sh/sdk/webhooks
-// The only diffference is we use btoa to encode the secret since Convex js runtime doesn't support Buffer
 const validateEvent = (
 	body: string | Buffer,
 	headers: Record<string, string>,
@@ -456,27 +365,27 @@ const validateEvent = (
 export const paymentWebhook = httpAction(async (ctx, request) => {
 	try {
 		const rawBody = await request.text();
-
-		// Internally validateEvent uses headers as a dictionary e.g. headers["webhook-id"]
-		// So we need to convert the headers to a dictionary
-		// (request.headers is a Headers object which is accessed as request.headers.get("webhook-id"))
 		const headers: Record<string, string> = {};
 		request.headers.forEach((value, key) => {
 			headers[key] = value;
 		});
 
-		// Validate the webhook event
 		if (!process.env.POLAR_WEBHOOK_SECRET) {
 			throw new Error(
 				"POLAR_WEBHOOK_SECRET environment variable is not configured",
 			);
 		}
+
 		validateEvent(rawBody, headers, process.env.POLAR_WEBHOOK_SECRET);
 
 		const body = JSON.parse(rawBody);
+		const polarEventId =
+			headers["webhook-id"] ??
+			body.id ??
+			`${body.type}:${body.data?.id ?? "unknown"}`;
 
-		// track events and based on events store data
 		await ctx.runMutation(api.subscriptions.handleWebhookEvent, {
+			polarEventId,
 			body,
 		});
 
@@ -509,18 +418,23 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
 });
 
 export const createCustomerPortalUrl = action({
-	handler: async (ctx, args: { customerId: string }) => {
-		const polar = new Polar({
-			server: "sandbox",
-			accessToken: process.env.POLAR_ACCESS_TOKEN,
-		});
+	args: {},
+	handler: async (ctx) => {
+		await requireIdentity(ctx);
+		await ctx.runMutation(api.users.upsertUser);
+
+		const subscription = await ctx.runQuery(api.subscriptions.fetchUserSubscription, {});
+		if (!subscription?.customerId) {
+			throw new Error("No customer portal is available for this user");
+		}
+
+		const polar = createPolarClient();
 
 		try {
 			const result = await polar.customerSessions.create({
-				customerId: args.customerId,
+				customerId: subscription.customerId,
 			});
 
-			// Only return the URL to avoid Convex type issues
 			return { url: result.customerPortalUrl };
 		} catch (error) {
 			console.error("Error creating customer session:", error);

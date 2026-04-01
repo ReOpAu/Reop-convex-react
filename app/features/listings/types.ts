@@ -49,8 +49,26 @@ export type Feature =
 	| "WineCellar"
 	| "OutdoorKitchen";
 
-// Clean listing type directly from Convex
-export type ConvexListing = Doc<"listings">;
+// Public listing queries intentionally omit exact location/contact fields.
+export type ConvexListing = Omit<
+	Doc<"listings">,
+	| "userId"
+	| "address"
+	| "latitude"
+	| "longitude"
+	| "geohash"
+	| "contactEmail"
+	| "contactPhone"
+> & {
+	userId?: Doc<"listings">["userId"];
+	address?: string;
+	latitude?: number;
+	longitude?: number;
+	geohash?: string;
+	contactEmail?: string;
+	contactPhone?: string;
+	hasExactLocation?: boolean;
+};
 
 // Main unified listing type
 export type Listing = ConvexListing;
@@ -82,8 +100,8 @@ export function getListingAddress(listing: Listing): string {
 }
 
 export function getListingLocation(listing: Listing): {
-	lat: number;
-	lng: number;
+	lat?: number;
+	lng?: number;
 } {
 	return { lat: listing.latitude, lng: listing.longitude };
 }

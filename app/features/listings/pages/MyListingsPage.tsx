@@ -1,5 +1,4 @@
 import { api } from "@/convex/_generated/api";
-import { useUser } from "@clerk/clerk-react";
 import { useQuery } from "convex/react";
 import {
 	Calendar,
@@ -25,6 +24,7 @@ import {
 import { Skeleton } from "../../../components/ui/skeleton";
 import { DeleteListingButton } from "../components/forms";
 import { type ConvexListing, formatListingPrice } from "../types";
+import { generateListingUrl } from "../utils/urlHelpers";
 
 const formatPrice = (listing: ConvexListing) => {
 	if (listing.priceMin === listing.priceMax) {
@@ -114,7 +114,7 @@ const MyListingCard: React.FC<{
 
 				<div className="flex gap-2 mt-4 pt-4 border-t">
 					<Button variant="outline" size="sm" asChild className="flex-1">
-						<Link to={`/listings/edit/${listing._id}`}>
+						<Link to={`${generateListingUrl(listing)}/edit`}>
 							<Edit className="w-3 h-3 mr-1" />
 							Edit
 						</Link>
@@ -135,13 +135,10 @@ const MyListingCard: React.FC<{
 };
 
 const MyListingsPage: React.FC = () => {
-	const { user } = useUser();
 	const [filter, setFilter] = useState<"all" | "buyer" | "seller">("all");
-	const allListings = useQuery(api.listings.listListings, {});
+	const myListings = useQuery(api.listings.listMyListings, {});
 
-	const userListings =
-		allListings?.listings?.filter((listing) => listing.userId === user?.id) ||
-		[];
+	const userListings = myListings?.listings || [];
 
 	const filteredListings =
 		filter === "all"
@@ -156,14 +153,16 @@ const MyListingsPage: React.FC = () => {
 
 	const handleDeleteSuccess = () => {};
 
-	if (!user) {
+	if (myListings === undefined) {
 		return (
 			<div className="flex-1 bg-gradient-to-b from-gray-50 to-white">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
 					<div className="text-center">
-						<h1 className="text-2xl font-bold text-gray-900">Please sign in</h1>
+						<h1 className="text-2xl font-bold text-gray-900">
+							Loading your listings
+						</h1>
 						<p className="mt-2 text-gray-600">
-							You need to be signed in to view your listings.
+							Fetching your latest buyer and seller listings.
 						</p>
 					</div>
 				</div>
@@ -257,7 +256,7 @@ const MyListingsPage: React.FC = () => {
 					</Button>
 				</div>
 
-				{allListings === undefined ? (
+				{myListings === undefined ? (
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 						{Array.from({ length: 4 }).map((_, i) => (
 							<Card key={i}>

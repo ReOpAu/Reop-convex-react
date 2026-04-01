@@ -33,7 +33,7 @@ import { ListingsErrorBoundary } from "../components/ListingsErrorBoundary";
 import { MatchScore } from "../components/MatchScore";
 import { MatchesTableSkeleton } from "../components/skeletons";
 import { useListingById, useMatchesForListing } from "../data/listingsService";
-import { calculateDistance, formatDistance, isBuyerListing } from "../utils";
+import { formatDistance, isBuyerListing } from "../utils";
 import {
 	generateListingUrl,
 	generateMatchDetailUrl,
@@ -273,18 +273,10 @@ const MatchesPage: React.FC = () => {
 											</div>
 										</TableCell>
 										<TableCell>
-											{listing.latitude &&
-											listing.longitude &&
-											match.listing.latitude &&
-											match.listing.longitude ? (
+											{typeof match.distance === "number" ? (
 												<div className="text-sm">
 													{(() => {
-														const distance = calculateDistance(
-															listing.latitude,
-															listing.longitude,
-															match.listing.latitude,
-															match.listing.longitude,
-														);
+														const distance = match.distance;
 														const isWithinRadius =
 															(isBuyerListing(listing) &&
 																listing.buyerType === "street" &&

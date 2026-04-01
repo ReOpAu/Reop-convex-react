@@ -17,7 +17,7 @@ import { api } from "../../convex/_generated/api";
 
 export default function Success() {
 	const { isSignedIn } = useAuth();
-	const subscription = useQuery(api.subscriptions.fetchUserSubscription);
+	const subscription = useQuery(api.subscriptions.fetchUserSubscription, {});
 	const upsertUser = useMutation(api.users.upsertUser);
 
 	// Ensure user is created/updated when they land on success page
@@ -47,7 +47,7 @@ export default function Success() {
 		);
 	}
 
-	if (!subscription) {
+	if (subscription === undefined) {
 		return (
 			<section className="flex flex-col items-center justify-center min-h-screen px-4">
 				<div className="flex items-center gap-2">
@@ -55,6 +55,31 @@ export default function Success() {
 					<span>Loading your subscription details...</span>
 				</div>
 			</section>
+		);
+	}
+
+	if (subscription === null) {
+		return (
+			<PublicLayout>
+				<section className="flex flex-col items-center justify-center min-h-screen px-4">
+					<Card className="max-w-md w-full text-center">
+						<CardHeader>
+							<CardTitle className="text-2xl">
+								Subscription still processing
+							</CardTitle>
+							<CardDescription>
+								Your payment completed, but the subscription record has not
+								landed yet.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<Button asChild className="w-full">
+								<Link to="/pricing">Refresh from Pricing</Link>
+							</Button>
+						</CardContent>
+					</Card>
+				</section>
+			</PublicLayout>
 		);
 	}
 

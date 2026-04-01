@@ -3,6 +3,36 @@ import type { Doc } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import { getSearchGeohashes } from "./geohashUtils";
 
+function toPublicListing(listing: Doc<"listings">) {
+	return {
+		_id: listing._id,
+		_creationTime: listing._creationTime,
+		listingType: listing.listingType,
+		suburb: listing.suburb,
+		state: listing.state,
+		postcode: listing.postcode,
+		buildingType: listing.buildingType,
+		bedrooms: listing.bedrooms,
+		bathrooms: listing.bathrooms,
+		parking: listing.parking,
+		priceMin: listing.priceMin,
+		priceMax: listing.priceMax,
+		features: listing.features,
+		buyerType: listing.buyerType,
+		searchRadius: listing.searchRadius,
+		sellerType: listing.sellerType,
+		headline: listing.headline,
+		description: listing.description,
+		images: listing.images,
+		isActive: listing.isActive,
+		isPremium: listing.isPremium,
+		sample: listing.sample,
+		createdAt: listing.createdAt,
+		updatedAt: listing.updatedAt,
+		hasExactLocation: false,
+	};
+}
+
 // Standardized score breakdown interface - aligned with frontend
 interface StandardScoreBreakdown {
 	overall: number;
@@ -277,6 +307,8 @@ export const findMatches = query({
 			.withIndex("by_type", (q) => q.eq("listingType", counterpartType))
 			.collect();
 
+		candidates = candidates.filter((listing) => listing.isActive === true);
+
 		// STRICT STATE BOUNDARY ENFORCEMENT
 		candidates = candidates.filter((listing) =>
 			allowedStates.includes(listing.state.toLowerCase()),
@@ -373,9 +405,22 @@ export const findMatches = query({
 		let scoredMatches = [];
 		for (const candidate of candidates) {
 			const matchResult = calculateMatchScore(originalListing, candidate);
+			const distance =
+				originalListing.latitude &&
+				originalListing.longitude &&
+				candidate.latitude &&
+				candidate.longitude
+					? haversine(
+							originalListing.latitude,
+							originalListing.longitude,
+							candidate.latitude,
+							candidate.longitude,
+						)
+					: undefined;
 			scoredMatches.push({
-				listing: candidate,
+				listing: toPublicListing(candidate),
 				score: matchResult.overall,
+				distance,
 				breakdown: options?.includeScoreBreakdown ? matchResult : undefined,
 			});
 		}
@@ -435,8 +480,8 @@ export const getMatchDetails = query({
 		const matchResult = calculateMatchScore(originalListing, matchedListing);
 
 		return {
-			originalListing,
-			matchedListing,
+			originalListing: toPublicListing(originalListing),
+			matchedListing: toPublicListing(matchedListing),
 			score: matchResult.overall,
 			breakdown: includeScoreBreakdown ? matchResult : undefined,
 			distance:

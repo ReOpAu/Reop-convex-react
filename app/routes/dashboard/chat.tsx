@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/react-router";
 import { useChat } from "@ai-sdk/react";
 import Markdown from "react-markdown";
 import { Button } from "~/components/ui/button";
@@ -12,10 +13,25 @@ const CONVEX_SITE_URL = import.meta.env.VITE_CONVEX_URL?.replace(
 );
 
 export default function Chat() {
+	const { getToken } = useAuth();
 	const { messages, input, handleInputChange, handleSubmit, isLoading } =
 		useChat({
 			maxSteps: 10,
 			api: `${CONVEX_SITE_URL}/api/chat`,
+			fetch: async (input, init) => {
+				const token = await getToken({ template: "convex" });
+				if (!token) {
+					throw new Error("Authentication required");
+				}
+
+				return fetch(input, {
+					...init,
+					headers: {
+						...(init?.headers ?? {}),
+						Authorization: `Bearer ${token}`,
+					},
+				});
+			},
 		});
 
 	return (

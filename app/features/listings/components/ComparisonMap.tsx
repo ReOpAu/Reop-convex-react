@@ -23,6 +23,15 @@ export const ComparisonMap: React.FC<ComparisonMapProps> = ({
 	matchedListing,
 	distance,
 }) => {
+	const originalHasExactLocation =
+		originalListing.hasExactLocation !== false &&
+		typeof originalListing.latitude === "number" &&
+		typeof originalListing.longitude === "number";
+	const matchedHasExactLocation =
+		matchedListing.hasExactLocation !== false &&
+		typeof matchedListing.latitude === "number" &&
+		typeof matchedListing.longitude === "number";
+
 	// Helper function to format price
 	const formatPrice = (listing: Listing): string => {
 		if (!listing.priceMin && !listing.priceMax) return "Price not specified";
@@ -84,16 +93,22 @@ export const ComparisonMap: React.FC<ComparisonMapProps> = ({
 					<CardContent className="p-0">
 						{/* Map */}
 						<div className="h-48 relative">
-							<Map
-								location={{
-									latitude: originalListing.latitude,
-									longitude: originalListing.longitude,
-								}}
-								zoom={15}
-								interactive={false}
-								listings={[originalListing]}
-								className="w-full h-full rounded-none"
-							/>
+							{originalHasExactLocation ? (
+								<Map
+									location={{
+										latitude: originalListing.latitude!,
+										longitude: originalListing.longitude!,
+									}}
+									zoom={15}
+									interactive={false}
+									listings={[originalListing]}
+									className="w-full h-full rounded-none"
+								/>
+							) : (
+								<div className="flex h-full items-center justify-center bg-slate-100 text-sm text-slate-600">
+									Exact location hidden for this listing
+								</div>
+							)}
 						</div>
 
 						{/* Property details */}
@@ -169,16 +184,22 @@ export const ComparisonMap: React.FC<ComparisonMapProps> = ({
 					<CardContent className="p-0">
 						{/* Map */}
 						<div className="h-48 relative">
-							<Map
-								location={{
-									latitude: matchedListing.latitude,
-									longitude: matchedListing.longitude,
-								}}
-								zoom={15}
-								interactive={false}
-								listings={[matchedListing]}
-								className="w-full h-full rounded-none"
-							/>
+							{matchedHasExactLocation ? (
+								<Map
+									location={{
+										latitude: matchedListing.latitude!,
+										longitude: matchedListing.longitude!,
+									}}
+									zoom={15}
+									interactive={false}
+									listings={[matchedListing]}
+									className="w-full h-full rounded-none"
+								/>
+							) : (
+								<div className="flex h-full items-center justify-center bg-slate-100 text-sm text-slate-600">
+									Exact location hidden for this listing
+								</div>
+							)}
 						</div>
 
 						{/* Property details */}

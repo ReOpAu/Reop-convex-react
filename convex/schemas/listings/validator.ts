@@ -66,18 +66,69 @@ export const listingValidator = {
  * Partial validator for creating listings (without server-generated fields)
  */
 export const createListingValidator = {
-	...listingValidator,
-	// Remove server-generated fields
-	createdAt: v.optional(v.number()),
-	updatedAt: v.optional(v.number()),
+	listingType: listingValidator.listingType,
+	suburb: listingValidator.suburb,
+	state: listingValidator.state,
+	postcode: listingValidator.postcode,
+	address: listingValidator.address,
+	latitude: listingValidator.latitude,
+	longitude: listingValidator.longitude,
+	geohash: listingValidator.geohash,
+	buildingType: listingValidator.buildingType,
+	bedrooms: listingValidator.bedrooms,
+	bathrooms: listingValidator.bathrooms,
+	parking: listingValidator.parking,
+	priceMin: listingValidator.priceMin,
+	priceMax: listingValidator.priceMax,
+	features: listingValidator.features,
+	buyerType: listingValidator.buyerType,
+	searchRadius: listingValidator.searchRadius,
+	sellerType: listingValidator.sellerType,
+	headline: listingValidator.headline,
+	description: listingValidator.description,
+	images: listingValidator.images,
+	contactEmail: listingValidator.contactEmail,
+	contactPhone: listingValidator.contactPhone,
+	isActive: listingValidator.isActive,
+	isPremium: listingValidator.isPremium,
+	sample: listingValidator.sample,
 };
 
 /**
  * Validator for updating listings (all fields optional except id)
  */
+const editableListingValidator = {
+	listingType: listingValidator.listingType,
+	suburb: listingValidator.suburb,
+	state: listingValidator.state,
+	postcode: listingValidator.postcode,
+	address: listingValidator.address,
+	latitude: listingValidator.latitude,
+	longitude: listingValidator.longitude,
+	geohash: listingValidator.geohash,
+	buildingType: listingValidator.buildingType,
+	bedrooms: listingValidator.bedrooms,
+	bathrooms: listingValidator.bathrooms,
+	parking: listingValidator.parking,
+	priceMin: listingValidator.priceMin,
+	priceMax: listingValidator.priceMax,
+	features: listingValidator.features,
+	buyerType: listingValidator.buyerType,
+	searchRadius: listingValidator.searchRadius,
+	sellerType: listingValidator.sellerType,
+	headline: listingValidator.headline,
+	description: listingValidator.description,
+	images: listingValidator.images,
+	contactEmail: listingValidator.contactEmail,
+	contactPhone: listingValidator.contactPhone,
+	isActive: listingValidator.isActive,
+	isPremium: listingValidator.isPremium,
+	sample: listingValidator.sample,
+};
+
 export const updateListingValidator = Object.fromEntries(
-	Object.entries(listingValidator).map(([key, value]) => [
+	Object.entries(editableListingValidator).map(([key, value]) => [
 		key,
 		v.optional(value as any),
 	]),
-) as Record<keyof typeof listingValidator, any>;
+) as Record<keyof typeof editableListingValidator, any>;

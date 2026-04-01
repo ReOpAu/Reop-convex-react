@@ -14,6 +14,7 @@ export interface CartesiaStartEvent {
 	config: {
 		input_format: "pcm_44100";
 	};
+	metadata?: Record<string, unknown>;
 }
 
 export interface CartesiaMediaInputEvent {

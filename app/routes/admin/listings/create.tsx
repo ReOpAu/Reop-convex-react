@@ -3,6 +3,13 @@ import type React from "react";
 import { Link, useNavigate } from "react-router";
 import { Button } from "../../../components/ui/button";
 import { CreateListingForm } from "../../../features/listings/components/forms";
+import { requireAdminRoute } from "../../../utils/auth.server";
+import type { Route } from "./+types/create";
+
+export async function loader(args: Route.LoaderArgs) {
+	await requireAdminRoute(args);
+	return { isAdmin: true };
+}
 
 const AdminCreateListingPage: React.FC = () => {
 	const navigate = useNavigate();

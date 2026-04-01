@@ -1,3 +1,4 @@
+import { useAuth } from "@clerk/react-router";
 import { ExternalLink, Loader2, Star } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
@@ -64,6 +65,7 @@ export const NearbyPlacesTabs: React.FC<NearbyPlacesTabsProps> = ({
 	longitude,
 	radius = 2000,
 }) => {
+	const { getToken } = useAuth();
 	const [activeTab, setActiveTab] = useState("education");
 	const [cachedData, setCachedData] = useState<Record<string, CachedData>>({});
 	const [loading, setLoading] = useState(false);
@@ -129,12 +131,20 @@ export const NearbyPlacesTabs: React.FC<NearbyPlacesTabsProps> = ({
 
 			setLoading(true);
 			try {
+				const token = await getToken({ template: "convex" });
+				if (!token) {
+					throw new Error("Sign in is required to load nearby places.");
+				}
+
 				const convexUrl = import.meta.env.VITE_CONVEX_URL;
 				// Convert .convex.cloud to .convex.site for HTTP actions
 				const httpUrl = convexUrl.replace(".convex.cloud", ".convex.site");
 				const response = await fetch(`${httpUrl}/api/nearbyPlaces`, {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
 					body: JSON.stringify({
 						lat: latitude,
 						lng: longitude,
@@ -174,7 +184,7 @@ export const NearbyPlacesTabs: React.FC<NearbyPlacesTabsProps> = ({
 				setLoading(false);
 			}
 		},
-		[latitude, longitude, radius, cachedData],
+		[getToken, latitude, longitude, radius, cachedData],
 	);
 
 	// Only fetch data when the component is mounted and a tab is active

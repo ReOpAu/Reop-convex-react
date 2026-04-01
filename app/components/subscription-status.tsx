@@ -18,7 +18,7 @@ export default function SubscriptionStatus() {
 	const { isSignedIn } = useAuth();
 	const [loadingDashboard, setLoadingDashboard] = useState(false);
 
-	const subscription = useQuery(api.subscriptions.fetchUserSubscription);
+	const subscription = useQuery(api.subscriptions.fetchUserSubscription, {});
 	const subscriptionStatus = useQuery(
 		api.subscriptions.checkUserSubscriptionStatus,
 		{},
@@ -30,9 +30,7 @@ export default function SubscriptionStatus() {
 
 		setLoadingDashboard(true);
 		try {
-			const result = await createPortalUrl({
-				customerId: subscription.customerId,
-			});
+			const result = await createPortalUrl({});
 			window.open(result.url, "_blank");
 		} catch (error) {
 			console.error("Failed to open customer portal:", error);
@@ -54,7 +52,7 @@ export default function SubscriptionStatus() {
 		);
 	}
 
-	if (!subscription) {
+	if (subscription === undefined || subscriptionStatus === undefined) {
 		return (
 			<Card>
 				<CardHeader>
@@ -70,7 +68,7 @@ export default function SubscriptionStatus() {
 		);
 	}
 
-	if (!subscriptionStatus?.hasActiveSubscription) {
+	if (subscription === null || !subscriptionStatus.hasActiveSubscription) {
 		return (
 			<Card>
 				<CardHeader>

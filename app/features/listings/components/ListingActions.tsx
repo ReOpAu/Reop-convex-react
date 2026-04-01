@@ -25,6 +25,10 @@ export interface ListingActionsProps {
 export const ListingActions: React.FC<ListingActionsProps> = ({ listing }) => {
 	const [showContactInfo, setShowContactInfo] = useState(false);
 	const { isAuthenticated } = useConvexAuth();
+	const hasExactLocation =
+		listing.hasExactLocation !== false &&
+		typeof listing.latitude === "number" &&
+		typeof listing.longitude === "number";
 
 	const handleContactClick = () => {
 		if (isAuthenticated) {
@@ -82,28 +86,30 @@ export const ListingActions: React.FC<ListingActionsProps> = ({ listing }) => {
 
 				<Separator />
 
-				{/* Street View Button */}
-				<StreetViewButton
-					lat={listing.latitude}
-					lng={listing.longitude}
-					variant="outline"
-					size="default"
-					className="w-full"
-				/>
+				{hasExactLocation && (
+					<>
+						<StreetViewButton
+							lat={listing.latitude!}
+							lng={listing.longitude!}
+							variant="outline"
+							size="default"
+							className="w-full"
+						/>
 
-				<Separator />
+						<Separator />
 
-				{/* Nearby Places Button */}
-				<NearbyPlacesButton
-					latitude={listing.latitude}
-					longitude={listing.longitude}
-					radius={5000}
-					variant="outline"
-					size="default"
-					className="w-full"
-				/>
+						<NearbyPlacesButton
+							latitude={listing.latitude!}
+							longitude={listing.longitude!}
+							radius={5000}
+							variant="outline"
+							size="default"
+							className="w-full"
+						/>
 
-				<Separator />
+						<Separator />
+					</>
+				)}
 
 				{/* View Matches Button */}
 				{listing._id && (

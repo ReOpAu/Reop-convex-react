@@ -1,16 +1,120 @@
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import {
 	createListingValidator,
-	listingValidator,
 	updateListingValidator,
 } from "./schemas/listings/validator";
-import { checkAuth } from "./utils/auth";
-// Clean schema - no migration utilities needed
+import {
+	getCurrentUser,
+	isAdminIdentity,
+	requireAdmin,
+	requireCurrentUser,
+	requireIdentity,
+	requireListingOwnerOrAdmin,
+} from "./utils/auth";
+
+function sortListingsByNewest(listings: Doc<"listings">[]) {
+	return [...listings].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function paginate<T>(items: T[], page = 1, pageSize = 12) {
+	const totalCount = items.length;
+	const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+	const currentPage = Math.min(Math.max(page, 1), totalPages);
+	const startIndex = (currentPage - 1) * pageSize;
+	const endIndex = startIndex + pageSize;
+
+	return {
+		items: items.slice(startIndex, endIndex),
+		pagination: {
+			currentPage,
+			totalPages,
+			totalCount,
+			pageSize,
+			hasNextPage: currentPage < totalPages,
+			hasPreviousPage: currentPage > 1,
+		},
+	};
+}
+
+function normalizeSuburbFilter(suburb: string) {
+	return suburb
+		.replace(/-/g, " ")
+		.split(" ")
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+		.join(" ");
+}
+
+function applyListingFilters(
+	listings: Doc<"listings">[],
+	{
+		listingType,
+		state,
+		suburb,
+	}: {
+		listingType?: "buyer" | "seller";
+		state?: string;
+		suburb?: string;
+	},
+) {
+	let results = listings;
+
+	if (listingType) {
+		results = results.filter((listing) => listing.listingType === listingType);
+	}
+
+	if (state) {
+		results = results.filter(
+			(listing) => listing.state.toLowerCase() === state.toLowerCase(),
+		);
+	}
+
+	if (suburb) {
+		const normalizedSuburb = normalizeSuburbFilter(suburb);
+		results = results.filter(
+			(listing) =>
+				listing.suburb.toLowerCase() === normalizedSuburb.toLowerCase(),
+		);
+	}
+
+	return results;
+}
+
+function toPublicListing(listing: Doc<"listings">) {
+	return {
+		_id: listing._id,
+		_creationTime: listing._creationTime,
+		listingType: listing.listingType,
+		suburb: listing.suburb,
+		state: listing.state,
+		postcode: listing.postcode,
+		buildingType: listing.buildingType,
+		bedrooms: listing.bedrooms,
+		bathrooms: listing.bathrooms,
+		parking: listing.parking,
+		priceMin: listing.priceMin,
+		priceMax: listing.priceMax,
+		features: listing.features,
+		buyerType: listing.buyerType,
+		searchRadius: listing.searchRadius,
+		sellerType: listing.sellerType,
+		headline: listing.headline,
+		description: listing.description,
+		images: listing.images,
+		isActive: listing.isActive,
+		isPremium: listing.isPremium,
+		sample: listing.sample,
+		createdAt: listing.createdAt,
+		updatedAt: listing.updatedAt,
+		hasExactLocation: false,
+	};
+}
 
 export const clearAllListings = mutation({
 	args: {},
 	handler: async (ctx) => {
+		await requireAdmin(ctx);
 		const listings = await ctx.db.query("listings").collect();
 		for (const listing of listings) {
 			await ctx.db.delete(listing._id);
@@ -24,26 +128,54 @@ export const createListing = mutation({
 		listing: v.object(createListingValidator),
 	},
 	handler: async (ctx, { listing }) => {
-		// Temporarily disable auth check for development
-		// await checkAuth(ctx);
-
-		// Add server-generated timestamps
+		const user = await requireCurrentUser(ctx);
 		const now = Date.now();
-		const listingWithTimestamps = {
-			...listing,
-			createdAt: listing.createdAt || now,
-			updatedAt: now,
-		};
 
-		const id = await ctx.db.insert("listings", listingWithTimestamps);
-		return id;
+		return await ctx.db.insert("listings", {
+			...listing,
+			userId: user._id,
+			createdAt: now,
+			updatedAt: now,
+		});
 	},
 });
 
 export const getListing = query({
 	args: { id: v.id("listings") },
 	handler: async (ctx, { id }) => {
-		return await ctx.db.get(id);
+		const listing = await ctx.db.get(id);
+		if (!listing || !listing.isActive) {
+			return null;
+		}
+
+		return toPublicListing(listing);
+	},
+});
+
+export const getListingForEdit = query({
+	args: { id: v.id("listings") },
+	handler: async (ctx, { id }) => {
+		const listing = await ctx.db.get(id);
+		if (!listing) {
+			return null;
+		}
+
+		const identity = await ctx.auth.getUserIdentity();
+		if (!identity) {
+			return null;
+		}
+
+		const isAdmin = isAdminIdentity(identity);
+		const user = await getCurrentUser(ctx);
+		if (!user) {
+			return null;
+		}
+
+		if (!isAdmin && listing.userId !== user._id) {
+			return null;
+		}
+
+		return listing;
 	},
 });
 
@@ -53,17 +185,30 @@ export const updateListing = mutation({
 		updates: v.object(updateListingValidator),
 	},
 	handler: async (ctx, { id, updates }) => {
-		// Temporarily disable auth check for development
-		// await checkAuth(ctx);
-		await ctx.db.patch(id, updates);
-		const result = await ctx.db.get(id);
-		return result;
+		const listing = await ctx.db.get(id);
+		if (!listing) {
+			throw new Error("Listing not found");
+		}
+
+		await requireListingOwnerOrAdmin(ctx, listing);
+		await ctx.db.patch(id, {
+			...updates,
+			updatedAt: Date.now(),
+		});
+
+		return await ctx.db.get(id);
 	},
 });
 
 export const deleteListing = mutation({
 	args: { id: v.id("listings") },
 	handler: async (ctx, { id }) => {
+		const listing = await ctx.db.get(id);
+		if (!listing) {
+			throw new Error("Listing not found");
+		}
+
+		await requireListingOwnerOrAdmin(ctx, listing);
 		await ctx.db.delete(id);
 		return { success: true };
 	},
@@ -81,116 +226,106 @@ export const listListings = query({
 		ctx,
 		{ listingType, state, suburb, page = 1, pageSize = 12 },
 	) => {
-		let results;
-		if (listingType) {
-			results = await ctx.db
-				.query("listings")
-				.withIndex("by_type", (q2) => q2.eq("listingType", listingType))
-				.collect();
-		} else {
-			results = await ctx.db.query("listings").collect();
-		}
-
-		if (state) {
-			// Case insensitive state matching - direct field access
-			results = results.filter(
-				(l) => l.state.toLowerCase() === state.toLowerCase(),
-			);
-		}
-		if (suburb) {
-			// Normalize suburb for comparison: convert URL format (potts-point) to title case (Potts Point)
-			const normalizedSuburb = suburb
-				.replace(/-/g, " ")
-				.split(" ")
-				.map(
-					(word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
-				)
-				.join(" ");
-			// Case insensitive suburb matching - direct field access
-			results = results.filter(
-				(l) => l.suburb.toLowerCase() === normalizedSuburb.toLowerCase(),
-			);
-		}
-
-		// Calculate pagination
-		const totalCount = results.length;
-		const totalPages = Math.ceil(totalCount / pageSize);
-		const startIndex = (page - 1) * pageSize;
-		const endIndex = startIndex + pageSize;
-
-		// Apply pagination
-		const paginatedResults = results.slice(startIndex, endIndex);
+		const allListings = await ctx.db.query("listings").collect();
+		const filteredListings = applyListingFilters(
+			sortListingsByNewest(
+				allListings.filter((listing) => listing.isActive === true),
+			),
+			{ listingType, state, suburb },
+		);
+		const { items, pagination } = paginate(filteredListings, page, pageSize);
 
 		return {
-			listings: paginatedResults,
-			pagination: {
-				currentPage: page,
-				totalPages,
-				totalCount,
-				pageSize,
-				hasNextPage: page < totalPages,
-				hasPreviousPage: page > 1,
-			},
+			listings: items.map(toPublicListing),
+			pagination,
 		};
 	},
 });
 
-// Debug query to see all listings with pagination
+export const listMyListings = query({
+	args: {
+		listingType: v.optional(v.union(v.literal("buyer"), v.literal("seller"))),
+		page: v.optional(v.number()),
+		pageSize: v.optional(v.number()),
+	},
+	handler: async (ctx, { listingType, page = 1, pageSize = 24 }) => {
+		const user = await requireCurrentUser(ctx);
+		const listings = await ctx.db.query("listings").collect();
+		const filteredListings = sortListingsByNewest(
+			listings.filter(
+				(listing) =>
+					listing.userId === user._id &&
+					(!listingType || listing.listingType === listingType),
+			),
+		);
+		const { items, pagination } = paginate(filteredListings, page, pageSize);
+
+		return {
+			listings: items,
+			pagination,
+		};
+	},
+});
+
+export const listListingsAdmin = query({
+	args: {
+		listingType: v.optional(v.union(v.literal("buyer"), v.literal("seller"))),
+		state: v.optional(v.string()),
+		suburb: v.optional(v.string()),
+		page: v.optional(v.number()),
+		pageSize: v.optional(v.number()),
+	},
+	handler: async (
+		ctx,
+		{ listingType, state, suburb, page = 1, pageSize = 20 },
+	) => {
+		await requireAdmin(ctx);
+		const allListings = await ctx.db.query("listings").collect();
+		const filteredListings = applyListingFilters(
+			sortListingsByNewest(allListings),
+			{ listingType, state, suburb },
+		);
+		const { items, pagination } = paginate(filteredListings, page, pageSize);
+
+		return {
+			listings: items,
+			pagination,
+		};
+	},
+});
+
 export const getAllListingsDebug = query({
 	args: {
 		page: v.optional(v.number()),
 		pageSize: v.optional(v.number()),
 	},
 	handler: async (ctx, { page = 1, pageSize = 50 }) => {
-		const allListings = await ctx.db.query("listings").collect();
-
-		// Calculate pagination
-		const totalCount = allListings.length;
-		const totalPages = Math.ceil(totalCount / pageSize);
-		const startIndex = (page - 1) * pageSize;
-		const endIndex = startIndex + pageSize;
-
-		// Apply pagination
-		const paginatedListings = allListings.slice(startIndex, endIndex);
+		await requireAdmin(ctx);
+		const allListings = sortListingsByNewest(await ctx.db.query("listings").collect());
+		const { items, pagination } = paginate(allListings, page, pageSize);
 
 		return {
-			listings: paginatedListings.map((l) => ({
-				id: l._id,
-				listingType: l.listingType,
-				state: l.state,
-				suburb: l.suburb,
+			listings: items.map((listing) => ({
+				id: listing._id,
+				listingType: listing.listingType,
+				state: listing.state,
+				suburb: listing.suburb,
+				isActive: listing.isActive,
+				ownerUserId: listing.userId,
 			})),
-			pagination: {
-				currentPage: page,
-				totalPages,
-				totalCount,
-				pageSize,
-			},
+			pagination,
 		};
 	},
 });
 
-// Save/unsave listing functionality
 export const saveListing = mutation({
 	args: {
 		listingId: v.id("listings"),
 		notes: v.optional(v.string()),
 	},
 	handler: async (ctx, { listingId, notes }) => {
-		const identity = await ctx.auth.getUserIdentity();
-		if (!identity) throw new Error("Not authenticated");
+		const user = await requireCurrentUser(ctx);
 
-		// Get user by auth identity
-		const user = await ctx.db
-			.query("users")
-			.withIndex("by_token", (q) =>
-				q.eq("tokenIdentifier", identity.tokenIdentifier),
-			)
-			.unique();
-
-		if (!user) throw new Error("User not found");
-
-		// Check if listing is already saved
 		const existingSave = await ctx.db
 			.query("savedListings")
 			.withIndex("by_user_and_listing", (q) =>
@@ -199,14 +334,12 @@ export const saveListing = mutation({
 			.unique();
 
 		if (existingSave) {
-			// Update existing save with new notes if provided
 			if (notes !== undefined) {
 				await ctx.db.patch(existingSave._id, { notes });
 			}
 			return { success: true, alreadySaved: true };
 		}
 
-		// Create new saved listing
 		await ctx.db.insert("savedListings", {
 			userId: user._id,
 			listingId,
@@ -221,20 +354,7 @@ export const saveListing = mutation({
 export const unsaveListing = mutation({
 	args: { listingId: v.id("listings") },
 	handler: async (ctx, { listingId }) => {
-		const identity = await ctx.auth.getUserIdentity();
-		if (!identity) throw new Error("Not authenticated");
-
-		// Get user by auth identity
-		const user = await ctx.db
-			.query("users")
-			.withIndex("by_token", (q) =>
-				q.eq("tokenIdentifier", identity.tokenIdentifier),
-			)
-			.unique();
-
-		if (!user) throw new Error("User not found");
-
-		// Find the saved listing
+		const user = await requireCurrentUser(ctx);
 		const savedListing = await ctx.db
 			.query("savedListings")
 			.withIndex("by_user_and_listing", (q) =>
@@ -255,19 +375,15 @@ export const isListingSaved = query({
 	args: { listingId: v.id("listings") },
 	handler: async (ctx, { listingId }) => {
 		const identity = await ctx.auth.getUserIdentity();
-		if (!identity) return false;
+		if (!identity) {
+			return false;
+		}
 
-		// Get user by auth identity
-		const user = await ctx.db
-			.query("users")
-			.withIndex("by_token", (q) =>
-				q.eq("tokenIdentifier", identity.tokenIdentifier),
-			)
-			.unique();
+		const user = await getCurrentUser(ctx);
+		if (!user) {
+			return false;
+		}
 
-		if (!user) return false;
-
-		// Check if listing is saved
 		const savedListing = await ctx.db
 			.query("savedListings")
 			.withIndex("by_user_and_listing", (q) =>
@@ -279,67 +395,56 @@ export const isListingSaved = query({
 	},
 });
 
-// Get user's saved listings
 export const getUserSavedListings = query({
 	args: {},
 	handler: async (ctx) => {
 		const identity = await ctx.auth.getUserIdentity();
-		if (!identity) return [];
+		if (!identity) {
+			return [];
+		}
 
-		// Get user by auth identity
-		const user = await ctx.db
-			.query("users")
-			.withIndex("by_token", (q) =>
-				q.eq("tokenIdentifier", identity.tokenIdentifier),
-			)
-			.unique();
+		const user = await getCurrentUser(ctx);
+		if (!user) {
+			return [];
+		}
 
-		if (!user) return [];
-
-		// Get saved listings with listing details
 		const savedListings = await ctx.db
 			.query("savedListings")
 			.withIndex("by_user", (q) => q.eq("userId", user._id))
 			.collect();
 
-		// Fetch listing details for each saved listing
 		const listingsWithDetails = await Promise.all(
 			savedListings.map(async (saved) => {
 				const listing = await ctx.db.get(saved.listingId);
-				return {
-					...saved,
-					listing,
-				};
+				return listing
+					? {
+							...saved,
+							listing: toPublicListing(listing),
+						}
+					: null;
 			}),
 		);
 
-		return listingsWithDetails.filter((item) => item.listing !== null);
+		return listingsWithDetails.filter((item) => item !== null);
 	},
 });
 
-// Get listing statistics for a specific state
 export const getStateListingStats = query({
 	args: { state: v.string() },
 	handler: async (ctx, { state }) => {
-		// Get all listings for the state (case insensitive)
 		const allListings = await ctx.db.query("listings").collect();
 		const stateListings = allListings.filter(
-			(l) => l.state.toLowerCase() === state.toLowerCase(),
+			(listing) =>
+				listing.isActive === true &&
+				listing.state.toLowerCase() === state.toLowerCase(),
 		);
 
-		// Calculate stats
-		const totalListings = stateListings.length;
-		const buyerListings = stateListings.filter(
-			(l) => l.listingType === "buyer",
-		).length;
-		const sellerListings = stateListings.filter(
-			(l) => l.listingType === "seller",
-		).length;
-
 		return {
-			totalListings,
-			buyerListings,
-			sellerListings,
+			totalListings: stateListings.length,
+			buyerListings: stateListings.filter((l) => l.listingType === "buyer")
+				.length,
+			sellerListings: stateListings.filter((l) => l.listingType === "seller")
+				.length,
 		};
 	},
 });

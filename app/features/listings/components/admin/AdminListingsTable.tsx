@@ -52,7 +52,7 @@ export const AdminListingsTable: React.FC<AdminListingsTableProps> = ({
 	const pageSize = 20;
 
 	// Query all listings with pagination
-	const listingsData = useQuery(api.listings.listListings, {
+	const listingsData = useQuery(api.listings.listListingsAdmin, {
 		listingType: typeFilter === "all" ? undefined : typeFilter,
 		state:
 			stateFilter && stateFilter !== "all-states" ? stateFilter : undefined,
@@ -318,7 +318,7 @@ export const AdminListingsTable: React.FC<AdminListingsTableProps> = ({
 										<div className="flex items-center gap-1 text-sm">
 											<User className="w-3 h-3" />
 											<span className="truncate max-w-20">
-												{listing.userId}
+												{String(listing.userId)}
 											</span>
 										</div>
 									</TableCell>

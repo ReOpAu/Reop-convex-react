@@ -6,4 +6,7 @@ export const users = defineTable({
 	email: v.optional(v.string()),
 	image: v.optional(v.string()),
 	tokenIdentifier: v.string(),
-}).index("by_token", ["tokenIdentifier"]);
+	subject: v.optional(v.string()),
+})
+	.index("by_token", ["tokenIdentifier"])
+	.index("by_subject", ["subject"]);

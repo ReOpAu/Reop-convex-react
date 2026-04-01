@@ -46,6 +46,12 @@ export function useListingById(id: string) {
 	return useQuery(api.listings.getListing, { id: id as Id<"listings"> });
 }
 
+export function useListingForEdit(id: string) {
+	return useQuery(api.listings.getListingForEdit, {
+		id: id as Id<"listings">,
+	});
+}
+
 // Fetch matches for a listing (by ID)
 export function useMatchesForListing(listingId: string, options = {}) {
 	const result = useQuery(api.matches.findMatches, {

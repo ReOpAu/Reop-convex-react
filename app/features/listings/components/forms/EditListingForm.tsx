@@ -1,10 +1,9 @@
-import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { useQuery } from "convex/react";
 import { AlertCircle } from "lucide-react";
 import type React from "react";
 import { Alert, AlertDescription } from "../../../../components/ui/alert";
 import { Skeleton } from "../../../../components/ui/skeleton";
+import { useListingForEdit } from "../../data/listingsService";
 import { BuyerListingForm } from "./BuyerListingForm";
 import { SellerListingForm } from "./SellerListingForm";
 
@@ -19,7 +18,7 @@ export const EditListingForm: React.FC<EditListingFormProps> = ({
 	onSuccess,
 	onCancel,
 }) => {
-	const listing = useQuery(api.listings.getListing, { id: listingId });
+	const listing = useListingForEdit(listingId);
 
 	// Loading state
 	if (listing === undefined) {

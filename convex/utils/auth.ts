@@ -1,11 +1,18 @@
-import type { ActionCtx, MutationCtx } from "../_generated/server";
+import type { UserIdentity } from "convex/server";
+import type { Doc } from "../_generated/dataModel";
+import type {
+	ActionCtx,
+	MutationCtx,
+	QueryCtx,
+} from "../_generated/server";
+import { isAdminAccess } from "../../shared/auth/admin";
 
-export async function checkAuth(ctx: MutationCtx | ActionCtx) {
+type AuthCtx = QueryCtx | MutationCtx | ActionCtx;
+type DbCtx = QueryCtx | MutationCtx;
+
+export async function requireIdentity(ctx: AuthCtx): Promise<UserIdentity> {
 	if (process.env.DISABLE_AUTH_FOR_MUTATIONS === "true") {
-		return {
-			identity: null,
-			user: null,
-		};
+		throw new Error("Mutations cannot bypass auth in this build");
 	}
 
 	const identity = await ctx.auth.getUserIdentity();
@@ -13,5 +20,181 @@ export async function checkAuth(ctx: MutationCtx | ActionCtx) {
 		throw new Error("Not authenticated");
 	}
 
-	return { identity };
+	return identity;
+}
+
+export function isAdminIdentity(identity: UserIdentity): boolean {
+	return isAdminAccess({
+		email: identity.email,
+		subject: identity.subject,
+		tokenIdentifier: identity.tokenIdentifier,
+		role: identity.role,
+		roles: identity.roles,
+		isAdmin: identity.isAdmin,
+		sessionClaims: identity,
+	});
+}
+
+export async function requireAdmin(ctx: AuthCtx): Promise<UserIdentity> {
+	const identity = await requireIdentity(ctx);
+	if (!isAdminIdentity(identity)) {
+		throw new Error("Admin access required");
+	}
+
+	return identity;
+}
+
+export async function findUserByIdentity(
+	ctx: DbCtx,
+	identity: UserIdentity,
+): Promise<{
+	user: Doc<"users"> | null;
+	matchedByLegacySubject: boolean;
+}> {
+	const directMatch = await ctx.db
+		.query("users")
+		.withIndex("by_token", (q) =>
+			q.eq("tokenIdentifier", identity.tokenIdentifier),
+		)
+		.unique();
+
+	if (directMatch) {
+		return { user: directMatch, matchedByLegacySubject: false };
+	}
+
+	const bySubject = await ctx.db
+		.query("users")
+		.withIndex("by_subject", (q) => q.eq("subject", identity.subject))
+		.unique();
+
+	if (bySubject) {
+		return { user: bySubject, matchedByLegacySubject: true };
+	}
+
+	const legacyMatch = await ctx.db
+		.query("users")
+		.withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
+		.unique();
+
+	return {
+		user: legacyMatch,
+		matchedByLegacySubject: Boolean(legacyMatch),
+	};
+}
+
+export async function upsertCurrentUser(ctx: MutationCtx): Promise<Doc<"users">> {
+	const identity = await requireIdentity(ctx);
+	const { user } = await findUserByIdentity(ctx, identity);
+
+	const profilePatch = {
+		name: identity.name,
+		email: identity.email,
+		image: identity.pictureUrl,
+		subject: identity.subject,
+		tokenIdentifier: identity.tokenIdentifier,
+	};
+
+	if (user) {
+		await ctx.db.patch(user._id, profilePatch);
+		const updatedUser = await ctx.db.get(user._id);
+		if (!updatedUser) {
+			throw new Error("User not found after update");
+		}
+		return updatedUser;
+	}
+
+	const userId = await ctx.db.insert("users", profilePatch);
+	const createdUser = await ctx.db.get(userId);
+	if (!createdUser) {
+		throw new Error("Failed to create user");
+	}
+
+	return createdUser;
+}
+
+export async function getCurrentUser(
+	ctx: DbCtx,
+): Promise<Doc<"users"> | null> {
+	const identity = await ctx.auth.getUserIdentity();
+	if (!identity) {
+		return null;
+	}
+
+	const { user } = await findUserByIdentity(ctx, identity);
+	return user;
+}
+
+export async function requireCurrentUser(
+	ctx: QueryCtx | MutationCtx,
+): Promise<Doc<"users">> {
+	if ("runMutation" in ctx) {
+		return upsertCurrentUser(ctx);
+	}
+
+	const user = await getCurrentUser(ctx);
+	if (!user) {
+		throw new Error("User not found");
+	}
+
+	return user;
+}
+
+export async function requireListingOwnerOrAdmin(
+	ctx: MutationCtx | QueryCtx,
+	listing: Doc<"listings">,
+): Promise<{
+	identity: UserIdentity;
+	user: Doc<"users">;
+	isAdmin: boolean;
+}> {
+	const identity = await requireIdentity(ctx);
+	const isAdmin = isAdminIdentity(identity);
+	const user = await requireCurrentUser(ctx);
+
+	if (!isAdmin && listing.userId !== user._id) {
+		throw new Error("Not authorized to manage this listing");
+	}
+
+	return { identity, user, isAdmin };
+}
+
+export async function findUserByIdentifier(
+	ctx: DbCtx,
+	userIdentifier: string,
+): Promise<Doc<"users"> | null> {
+	const byToken = await ctx.db
+		.query("users")
+		.withIndex("by_token", (q) => q.eq("tokenIdentifier", userIdentifier))
+		.unique();
+
+	if (byToken) {
+		return byToken;
+	}
+
+	return await ctx.db
+		.query("users")
+		.withIndex("by_subject", (q) => q.eq("subject", userIdentifier))
+		.unique();
+}
+
+export async function findSubscriptionByUserIdentifiers(
+	ctx: DbCtx,
+	user: Pick<Doc<"users">, "tokenIdentifier" | "subject">,
+): Promise<Doc<"subscriptions"> | null> {
+	const identifiers = [user.tokenIdentifier, user.subject].filter(
+		(value): value is string => Boolean(value),
+	);
+
+	for (const identifier of identifiers) {
+		const subscription = await ctx.db
+			.query("subscriptions")
+			.withIndex("userId", (q) => q.eq("userId", identifier))
+			.first();
+
+		if (subscription) {
+			return subscription;
+		}
+	}
+
+	return null;
 }

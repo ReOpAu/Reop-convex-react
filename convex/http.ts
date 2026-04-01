@@ -7,14 +7,74 @@ import { paymentWebhook } from "./subscriptions";
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const PLACES_API_URL = "https://places.googleapis.com/v1/places:searchNearby";
 
-// Helper to calculate distance using Haversine formula
+function getAllowedOrigin(request: Request) {
+	const origin = request.headers.get("Origin");
+	if (!origin) {
+		return null;
+	}
+
+	const allowedOrigins = new Set(
+		[process.env.FRONTEND_URL].filter(
+			(value): value is string => typeof value === "string" && value.length > 0,
+		),
+	);
+
+	return allowedOrigins.has(origin) ? origin : null;
+}
+
+function corsHeaders(request: Request, methods: string): Record<string, string> {
+	const origin = getAllowedOrigin(request);
+	if (!origin) {
+		return {};
+	}
+
+	return {
+		"Access-Control-Allow-Origin": origin,
+		"Access-Control-Allow-Methods": methods,
+		"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		"Access-Control-Allow-Credentials": "true",
+		Vary: "Origin",
+	};
+}
+
+function jsonResponse(
+	request: Request,
+	body: Record<string, unknown> | unknown[],
+	status = 200,
+) {
+	return new Response(JSON.stringify(body), {
+		status,
+		headers: {
+			"Content-Type": "application/json",
+			...corsHeaders(request, "POST, OPTIONS"),
+		},
+	});
+}
+
+async function requireHttpIdentity(ctx: any) {
+	try {
+		const identity = await ctx.auth.getUserIdentity();
+		return identity ?? null;
+	} catch {
+		return null;
+	}
+}
+
+async function requireJsonBody(request: Request) {
+	try {
+		return await request.json();
+	} catch {
+		return null;
+	}
+}
+
 function calculateDistance(
 	lat1: number,
 	lon1: number,
 	lat2: number,
 	lon2: number,
 ): number {
-	const R = 6371e3; // Earth's radius in meters
+	const R = 6371e3;
 	const φ1 = (lat1 * Math.PI) / 180;
 	const φ2 = (lat2 * Math.PI) / 180;
 	const Δφ = ((lat2 - lat1) * Math.PI) / 180;
@@ -25,15 +85,12 @@ function calculateDistance(
 		Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
 	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-	return Math.round(R * c); // Return distance in meters
+	return Math.round(R * c);
 }
 
-// Simplified display type getter
 function getDisplayType(types: string[]): string {
 	if (types.length > 0) {
-		// Capitalize first letter and replace underscores with spaces
-		const type = types[0];
-		return type
+		return types[0]
 			.split("_")
 			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 			.join(" ");
@@ -41,40 +98,100 @@ function getDisplayType(types: string[]): string {
 	return "Place";
 }
 
-export const nearbyPlaces = httpAction(async (_, request) => {
+function parseNearbyPlacesRequest(body: any) {
+	const lat = Number(body?.lat);
+	const lng = Number(body?.lng);
+	const radius = body?.radius === undefined ? 2000 : Number(body.radius);
+	const minRating =
+		body?.minRating === undefined ? undefined : Number(body.minRating);
+	const types = Array.isArray(body?.types)
+		? body.types.filter((type: unknown) => typeof type === "string").slice(0, 10)
+		: [];
+
+	if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+		return { error: "Latitude must be a valid number between -90 and 90." };
+	}
+
+	if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+		return {
+			error: "Longitude must be a valid number between -180 and 180.",
+		};
+	}
+
+	if (!Number.isFinite(radius) || radius < 100 || radius > 20_000) {
+		return {
+			error: "Radius must be a valid number between 100 and 20000 meters.",
+		};
+	}
+
+	if (
+		minRating !== undefined &&
+		(!Number.isFinite(minRating) || minRating < 0 || minRating > 5)
+	) {
+		return { error: "Minimum rating must be between 0 and 5." };
+	}
+
+	return {
+		lat,
+		lng,
+		radius,
+		types,
+		minRating,
+	};
+}
+
+function validateChatMessages(messages: unknown) {
+	if (!Array.isArray(messages) || messages.length === 0 || messages.length > 20) {
+		return false;
+	}
+
+	try {
+		const serialized = JSON.stringify(messages);
+		return serialized.length <= 50_000;
+	} catch {
+		return false;
+	}
+}
+
+export const nearbyPlaces = httpAction(async (ctx, request) => {
+	if (!getAllowedOrigin(request) && request.headers.get("Origin")) {
+		return jsonResponse(request, { error: "Origin not allowed." }, 403);
+	}
+
+	const identity = await requireHttpIdentity(ctx);
+	if (!identity) {
+		return jsonResponse(request, { error: "Authentication required." }, 401);
+	}
+
 	if (!GOOGLE_MAPS_API_KEY) {
-		return new Response(
-			JSON.stringify({ error: "Google Places API key is not configured." }),
-			{
-				status: 500,
-				headers: { "Content-Type": "application/json" },
-			},
+		return jsonResponse(
+			request,
+			{ error: "Google Places API key is not configured." },
+			500,
 		);
 	}
 
-	const { lat, lng, radius, types, minRating } = await request.json();
+	const body = await requireJsonBody(request);
+	if (!body) {
+		return jsonResponse(request, { error: "Invalid JSON body." }, 400);
+	}
 
-	if (!lat || !lng) {
-		return new Response(
-			JSON.stringify({ error: "Latitude and longitude are required." }),
-			{
-				status: 400,
-				headers: { "Content-Type": "application/json" },
-			},
-		);
+	const parsed = parseNearbyPlacesRequest(body);
+	if ("error" in parsed) {
+		return jsonResponse(request, { error: parsed.error }, 400);
 	}
 
 	const requestBody = {
 		locationRestriction: {
 			circle: {
 				center: {
-					latitude: Number.parseFloat(lat),
-					longitude: Number.parseFloat(lng),
+					latitude: parsed.lat,
+					longitude: parsed.lng,
 				},
-				radius: Number.parseFloat(radius || "2000"),
+				radius: parsed.radius,
 			},
 		},
-		includedTypes: types,
+		includedTypes: parsed.types,
 		maxResultCount: 20,
 	};
 
@@ -91,48 +208,37 @@ export const nearbyPlaces = httpAction(async (_, request) => {
 		});
 
 		if (!response.ok) {
-			const errorBody = await response.text();
-			console.error("Google Places API error:", errorBody);
-			return new Response(
-				JSON.stringify({ error: "Failed to fetch from Google Places API." }),
-				{
-					status: response.status,
-					headers: { "Content-Type": "application/json" },
-				},
+			console.error("Google Places API error:", await response.text());
+			return jsonResponse(
+				request,
+				{ error: "Failed to fetch nearby places." },
+				response.status,
 			);
 		}
 
 		const data = await response.json();
+		const rawPlaces = Array.isArray(data?.places) ? data.places : [];
 
-		if (!data.places) {
-			return new Response(JSON.stringify([]), {
-				status: 200,
-				headers: {
-					"Content-Type": "application/json",
-					"Access-Control-Allow-Origin": "*",
-				},
-			});
-		}
-
-		let places = data.places.map((place: any, index: number) => ({
-			place_id: `place_${index}_${Math.random().toString(36).substr(2, 9)}`,
+		let places = rawPlaces.map((place: any, index: number) => ({
+			place_id: `place_${index}_${Math.random().toString(36).slice(2, 11)}`,
 			name: place.displayName?.text,
 			vicinity: place.formattedAddress,
 			rating: place.rating,
 			types: place.types,
-			type: getDisplayType(place.types),
+			type: getDisplayType(place.types ?? []),
 			distance: calculateDistance(
-				Number.parseFloat(lat),
-				Number.parseFloat(lng),
+				parsed.lat,
+				parsed.lng,
 				place.location.latitude,
 				place.location.longitude,
 			),
 		}));
 
-		if (minRating) {
+		const minRating = parsed.minRating;
+		if (minRating !== undefined) {
 			places = places.filter(
 				(place: { rating?: number }) =>
-					place.rating && place.rating >= Number.parseFloat(minRating),
+					typeof place.rating === "number" && place.rating >= minRating,
 			);
 		}
 
@@ -141,46 +247,59 @@ export const nearbyPlaces = httpAction(async (_, request) => {
 				a.distance - b.distance,
 		);
 
-		return new Response(JSON.stringify(places), {
-			status: 200,
-			headers: {
-				"Content-Type": "application/json",
-				"Access-Control-Allow-Origin": "*",
-			},
-		});
+		return jsonResponse(request, places);
 	} catch (error) {
 		console.error("Error fetching nearby places:", error);
-		return new Response(
-			JSON.stringify({ error: "An internal error occurred." }),
-			{
-				status: 500,
-				headers: { "Content-Type": "application/json" },
-			},
+		return jsonResponse(
+			request,
+			{ error: "An internal error occurred." },
+			500,
 		);
 	}
 });
 
-export const chat = httpAction(async (ctx, req) => {
-	// Extract the `messages` from the body of the request
-	const { messages } = await req.json();
+export const chat = httpAction(async (ctx, request) => {
+	if (!getAllowedOrigin(request) && request.headers.get("Origin")) {
+		return jsonResponse(request, { error: "Origin not allowed." }, 403);
+	}
+
+	const identity = await requireHttpIdentity(ctx);
+	if (!identity) {
+		return jsonResponse(request, { error: "Authentication required." }, 401);
+	}
+
+	const body = await requireJsonBody(request);
+	if (!body || !validateChatMessages(body.messages)) {
+		return jsonResponse(request, { error: "Invalid chat request." }, 400);
+	}
 
 	const result = streamText({
 		model: openai("gpt-4o"),
-		messages,
+		messages: body.messages,
 	});
 
-	// Respond with the stream
 	return result.toDataStreamResponse({
 		headers: {
-			"Access-Control-Allow-Origin":
-				process.env.FRONTEND_URL || "http://localhost:5173",
-			"Access-Control-Allow-Methods": "POST, OPTIONS",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-			"Access-Control-Allow-Credentials": "true",
-			Vary: "origin",
+			...corsHeaders(request, "POST, OPTIONS"),
 		},
 	});
 });
+
+function buildPreflightHandler(methods: string) {
+	return httpAction(async (_, request) => {
+		const origin = getAllowedOrigin(request);
+		if (!origin) {
+			return new Response(null, { status: 403 });
+		}
+
+		return new Response(null, {
+			headers: {
+				...corsHeaders(request, methods),
+				"Access-Control-Max-Age": "86400",
+			},
+		});
+	});
+}
 
 const http = httpRouter();
 
@@ -193,54 +312,24 @@ http.route({
 http.route({
 	path: "/api/chat",
 	method: "OPTIONS",
-	handler: httpAction(async (_, request) => {
-		// Make sure the necessary headers are present
-		// for this to be a valid pre-flight request
-		const headers = request.headers;
-		if (
-			headers.get("Origin") !== null &&
-			headers.get("Access-Control-Request-Method") !== null &&
-			headers.get("Access-Control-Request-Headers") !== null
-		) {
-			return new Response(null, {
-				headers: new Headers({
-					"Access-Control-Allow-Origin":
-						process.env.FRONTEND_URL || "http://localhost:5173",
-					"Access-Control-Allow-Methods": "POST",
-					"Access-Control-Allow-Headers": "Content-Type, Authorization",
-					"Access-Control-Allow-Credentials": "true",
-					"Access-Control-Max-Age": "86400",
-				}),
-			});
-		}
-		return new Response();
-	}),
+	handler: buildPreflightHandler("POST"),
 });
 
 http.route({
 	path: "/api/auth/webhook",
 	method: "POST",
 	handler: httpAction(async (_, request) => {
-		// Make sure the necessary headers are present
-		// for this to be a valid pre-flight request
-		const headers = request.headers;
-		if (
-			headers.get("Origin") !== null &&
-			headers.get("Access-Control-Request-Method") !== null &&
-			headers.get("Access-Control-Request-Headers") !== null
-		) {
-			return new Response(null, {
-				headers: new Headers({
-					"Access-Control-Allow-Origin":
-						process.env.FRONTEND_URL || "http://localhost:5173",
-					"Access-Control-Allow-Methods": "POST",
-					"Access-Control-Allow-Headers": "Content-Type, Authorization",
-					"Access-Control-Allow-Credentials": "true",
-					"Access-Control-Max-Age": "86400",
-				}),
-			});
+		const origin = getAllowedOrigin(request);
+		if (!origin) {
+			return new Response();
 		}
-		return new Response();
+
+		return new Response(null, {
+			headers: {
+				...corsHeaders(request, "POST"),
+				"Access-Control-Max-Age": "86400",
+			},
+		});
 	}),
 });
 
@@ -259,29 +348,7 @@ http.route({
 http.route({
 	path: "/api/nearbyPlaces",
 	method: "OPTIONS",
-	handler: httpAction(async (_, request) => {
-		// Make sure the necessary headers are present
-		// for this to be a valid pre-flight request
-		const headers = request.headers;
-		if (
-			headers.get("Origin") !== null &&
-			headers.get("Access-Control-Request-Method") !== null &&
-			headers.get("Access-Control-Request-Headers") !== null
-		) {
-			return new Response(null, {
-				headers: new Headers({
-					"Access-Control-Allow-Origin":
-						process.env.FRONTEND_URL || "http://localhost:5173",
-					"Access-Control-Allow-Methods": "POST, OPTIONS",
-					"Access-Control-Allow-Headers": "Content-Type, Authorization",
-					"Access-Control-Allow-Credentials": "true",
-					"Access-Control-Max-Age": "86400",
-				}),
-			});
-		}
-		return new Response();
-	}),
+	handler: buildPreflightHandler("POST"),
 });
 
-// Convex expects the router to be the default export of `convex/http.js`.
 export default http;

@@ -178,7 +178,6 @@ export function CreateListingFormComponent() {
 			const now = Date.now();
 			const listingData = {
 				...values,
-				userId: user.id as any,
 				geohash: ngeohash.encode(
 					values.latitude ?? 0,
 					values.longitude ?? 0,

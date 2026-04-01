@@ -27,19 +27,14 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export default function IntegratedPricing() {
-	const { isSignedIn, userId } = useAuth();
+	const { isSignedIn } = useAuth();
 	const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
 	const [plans, setPlans] = useState<any>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	const getPlans = useAction(api.subscriptions.getAvailablePlans);
-	const subscriptionStatus = useQuery(
-		api.subscriptions.checkUserSubscriptionStatus,
-		{
-			userId: isSignedIn ? userId : undefined,
-		},
-	);
-	const userSubscription = useQuery(api.subscriptions.fetchUserSubscription);
+	const subscriptionStatus = useQuery(api.subscriptions.checkUserSubscriptionStatus, {});
+	const userSubscription = useQuery(api.subscriptions.fetchUserSubscription, {});
 	const createCheckout = useAction(api.subscriptions.createCheckoutSession);
 	const createPortalUrl = useAction(api.subscriptions.createCustomerPortalUrl);
 	const upsertUser = useMutation(api.users.upsertUser);
@@ -84,9 +79,7 @@ export default function IntegratedPricing() {
 				userSubscription?.status === "active" &&
 				userSubscription?.customerId
 			) {
-				const portalResult = await createPortalUrl({
-					customerId: userSubscription.customerId,
-				});
+				const portalResult = await createPortalUrl({});
 				window.open(portalResult.url, "_blank");
 				setLoadingPriceId(null);
 				return;

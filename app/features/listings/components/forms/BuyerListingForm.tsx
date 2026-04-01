@@ -1,7 +1,6 @@
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { useUser } from "@clerk/clerk-react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { AlertCircle, Search } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
@@ -36,6 +35,7 @@ import { LocationFields } from "./shared/LocationFields";
 import { PriceFields } from "./shared/PriceFields";
 import { PropertyDetailsFields } from "./shared/PropertyDetailsFields";
 import { useFormStatus } from "./shared/useFormStatus";
+import { useListingForEdit } from "../../data/listingsService";
 
 interface BuyerListingFormProps {
 	listingId: Id<"listings">;
@@ -76,8 +76,7 @@ export const BuyerListingForm: React.FC<BuyerListingFormProps> = ({
 	onSuccess,
 	onCancel,
 }) => {
-	const { user } = useUser();
-	const listing = useQuery(api.listings.getListing, { id: listingId });
+	const listing = useListingForEdit(listingId);
 	const updateListing = useMutation(api.listings.updateListing);
 
 	const [formData, setFormData] = useState<BuyerFormData>({
@@ -181,7 +180,6 @@ export const BuyerListingForm: React.FC<BuyerListingFormProps> = ({
 					features: formData.features,
 					searchRadius: formData.searchRadius,
 					isPremium: formData.isPremium,
-					updatedAt: Date.now(),
 				},
 			});
 			dispatch({ type: "SUBMIT_SUCCESS" });

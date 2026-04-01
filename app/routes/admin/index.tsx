@@ -19,6 +19,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "../../components/ui/card";
+import { requireAdminRoute } from "../../utils/auth.server";
+import type { Route } from "./+types/index";
+
+export async function loader(args: Route.LoaderArgs) {
+	await requireAdminRoute(args);
+	return { isAdmin: true };
+}
 
 const AdminDashboard: React.FC = () => {
 	const adminFeatures = [

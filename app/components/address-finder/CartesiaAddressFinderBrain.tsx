@@ -97,13 +97,12 @@ export function CartesiaAddressFinderBrain({
 
 	// Cartesia config
 	const agentId = import.meta.env.VITE_CARTESIA_AGENT_ID || "";
-	const envApiKey = import.meta.env.VITE_CARTESIA_API_KEY || "";
-
-	// Fixed session ID for Convex state bridge — must match Python agent's default
-	// In production, the browser would send its session ID to the agent via custom event
-	const sessionId = "default";
 	const clearSessionMutation = useMutation(
 		api.cartesia.sessionState.clearSession,
+	);
+	const cartesiaSessionIdRef = useRef<string | null>(null);
+	const [cartesiaSessionId, setCartesiaSessionId] = useState<string | null>(
+		null,
 	);
 
 	// Token minting: prefer Convex action, fall back to env var for local dev
@@ -111,36 +110,30 @@ export function CartesiaAddressFinderBrain({
 		api.cartesia.getAccessToken.getAccessToken,
 	);
 
+	const getOrCreateCartesiaSessionId = useCallback(() => {
+		if (!cartesiaSessionIdRef.current) {
+			const nextSessionId = `cartesia_${crypto.randomUUID()}`;
+			cartesiaSessionIdRef.current = nextSessionId;
+			setCartesiaSessionId(nextSessionId);
+		}
+
+		return cartesiaSessionIdRef.current;
+	}, []);
+
 	const getAuthToken = useCallback(async (): Promise<string | null> => {
-		// Try server-minted short-lived token first
 		try {
-			const result = await getAccessTokenAction();
+			const result = await getAccessTokenAction({
+				sessionId: getOrCreateCartesiaSessionId(),
+			});
 			if (result.success) {
-				console.log("[Cartesia] Using server-minted access token");
 				return result.token;
 			}
-			console.warn(
-				"[Cartesia] Token mint failed:",
-				result.error,
-				"— falling back to env var",
-			);
+			console.warn("[Cartesia] Token mint failed:", result.error);
 		} catch (err) {
-			console.warn(
-				"[Cartesia] Token mint error:",
-				err,
-				"— falling back to env var",
-			);
+			console.warn("[Cartesia] Token mint error:", err);
 		}
-
-		// Fallback: raw API key from env (local dev/POC only)
-		if (envApiKey) {
-			console.log("[Cartesia] Using VITE_CARTESIA_API_KEY fallback");
-			return envApiKey;
-		}
-
-		console.error("[Cartesia] No auth token available");
 		return null;
-	}, [getAccessTokenAction, envApiKey]);
+	}, [getAccessTokenAction, getOrCreateCartesiaSessionId]);
 
 	// --- Cartesia hooks ---
 	const {
@@ -150,6 +143,7 @@ export function CartesiaAddressFinderBrain({
 		sendMediaInput,
 	} = useCartesiaConversation({
 		agentId,
+		sessionId: cartesiaSessionId,
 		getAuthToken,
 		onMediaOutput: (base64Data) => playAudioChunk(base64Data),
 		onClear: () => flushAudio(),
@@ -157,7 +151,7 @@ export function CartesiaAddressFinderBrain({
 
 	// State bridge: subscribe to Convex for updates from the Python agent
 	useCartesiaEventHandler({
-		sessionId,
+		sessionId: cartesiaSessionId ?? "",
 		enabled: cartesiaStatus === "connected",
 	});
 
@@ -349,16 +343,23 @@ export function CartesiaAddressFinderBrain({
 
 	// --- Recording handlers (Cartesia-specific) ---
 	const handleStartRecording = useCallback(async () => {
-		await wsStartSession();
+		const activeSessionId = getOrCreateCartesiaSessionId();
+		await wsStartSession(activeSessionId);
 		await startCapture();
-	}, [wsStartSession, startCapture]);
+	}, [getOrCreateCartesiaSessionId, wsStartSession, startCapture]);
 
 	const handleStopRecording = useCallback(() => {
+		const activeSessionId = cartesiaSessionIdRef.current;
 		stopCapture();
 		wsEndSession();
-		// Clean up Convex session state
-		clearSessionMutation({ sessionId });
-	}, [stopCapture, wsEndSession, clearSessionMutation, sessionId]);
+		cartesiaSessionIdRef.current = null;
+		setCartesiaSessionId(null);
+		if (activeSessionId) {
+			clearSessionMutation({ sessionId: activeSessionId }).catch((error) => {
+				console.warn("[Cartesia] Failed to clear session", error);
+			});
+		}
+	}, [stopCapture, wsEndSession, clearSessionMutation]);
 
 	// --- Query management (identical to ElevenLabs Brain) ---
 	const effectiveQueryKey =

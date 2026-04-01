@@ -67,7 +67,13 @@ const createListingPoints = (listings: Listing[]) => {
 	return {
 		type: "FeatureCollection" as const,
 		features: listings
-			.filter((listing) => listing.latitude && listing.longitude)
+			.filter(
+				(
+					listing,
+				): listing is Listing & { latitude: number; longitude: number } =>
+					typeof listing.latitude === "number" &&
+					typeof listing.longitude === "number",
+			)
 			.map((listing) => ({
 				type: "Feature" as const,
 				properties: {

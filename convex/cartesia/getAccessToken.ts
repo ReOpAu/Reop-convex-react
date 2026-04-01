@@ -1,8 +1,12 @@
 import { v } from "convex/values";
+import { api } from "../_generated/api";
 import { action } from "../_generated/server";
+import { requireIdentity } from "../utils/auth";
 
 export const getAccessToken = action({
-	args: {},
+	args: {
+		sessionId: v.string(),
+	},
 	returns: v.union(
 		v.object({
 			success: v.literal(true),
@@ -13,7 +17,9 @@ export const getAccessToken = action({
 			error: v.string(),
 		}),
 	),
-	handler: async () => {
+	handler: async (ctx, args) => {
+		await requireIdentity(ctx);
+
 		const apiKey = process.env.CARTESIA_API_KEY;
 		if (!apiKey) {
 			return {
@@ -21,6 +27,17 @@ export const getAccessToken = action({
 				error: "Cartesia API key not configured",
 			};
 		}
+
+		if (!process.env.CARTESIA_BRIDGE_SECRET) {
+			return {
+				success: false as const,
+				error: "Cartesia bridge secret not configured",
+			};
+		}
+
+		await ctx.runMutation(api.cartesia.sessionState.registerSession, {
+			sessionId: args.sessionId,
+		});
 
 		try {
 			const resp = await fetch("https://api.cartesia.ai/access-token", {

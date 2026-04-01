@@ -33,6 +33,13 @@ export interface ListingFullCardProps {
 export const ListingFullCard: React.FC<ListingFullCardProps> = ({
 	listing,
 }) => {
+	const hasExactLocation =
+		listing.hasExactLocation !== false &&
+		typeof listing.latitude === "number" &&
+		typeof listing.longitude === "number" &&
+		typeof listing.geohash === "string" &&
+		listing.geohash.length > 0;
+
 	return (
 		<div className="space-y-6">
 			{/* Image Gallery */}
@@ -70,30 +77,34 @@ export const ListingFullCard: React.FC<ListingFullCardProps> = ({
 					<CardTitle className="text-lg">Location</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<div className="space-y-4">
-						{/* Map */}
-						<Map
-							location={{
-								latitude: listing.latitude,
-								longitude: listing.longitude,
-							}}
-							zoom={15}
-							interactive={true}
-							geohash={listing.geohash}
-							listings={[listing]}
-							className="w-full h-[300px] rounded-lg"
-						/>
-
-						{/* Street View Button */}
-						<div className="flex justify-center">
-							<StreetViewButton
-								lat={listing.latitude}
-								lng={listing.longitude}
-								variant="outline"
-								size="sm"
+					{hasExactLocation ? (
+						<div className="space-y-4">
+							<Map
+								location={{
+									latitude: listing.latitude!,
+									longitude: listing.longitude!,
+								}}
+								zoom={15}
+								interactive={true}
+								geohash={listing.geohash}
+								listings={[listing]}
+								className="w-full h-[300px] rounded-lg"
 							/>
+
+							<div className="flex justify-center">
+								<StreetViewButton
+									lat={listing.latitude!}
+									lng={listing.longitude!}
+									variant="outline"
+									size="sm"
+								/>
+							</div>
 						</div>
-					</div>
+					) : (
+						<p className="text-sm text-muted-foreground">
+							Exact location is hidden on public listing views.
+						</p>
+					)}
 				</CardContent>
 			</Card>
 
