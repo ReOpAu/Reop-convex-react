@@ -1,4 +1,4 @@
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { redirect } from "react-router";
 import { AddressFinderUI } from "~/components/address-finder/AddressFinderUI";
 import { CartesiaAddressFinderBrain } from "~/components/address-finder/CartesiaAddressFinderBrain";

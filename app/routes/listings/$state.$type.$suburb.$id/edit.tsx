@@ -1,4 +1,4 @@
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { redirect } from "react-router";
 import { PublicLayout } from "~/components/layout/PublicLayout";
 import EditListingPage from "~/features/listings/pages/EditListingPage";

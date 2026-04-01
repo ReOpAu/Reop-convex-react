@@ -1,6 +1,13 @@
 {
 	"extends": "./tsconfig.base.json",
-	"include": ["app", "shared", "remix.env.d.ts", "**/*.ts", "**/*.tsx"],
+	"include": [
+		"app",
+		"shared",
+		"remix.env.d.ts",
+		".react-router/types/**/*.ts",
+		"**/*.ts",
+		"**/*.tsx"
+	],
 	"exclude": ["node_modules", "public", "_archive"],
 	"compilerOptions": {
 		"lib": ["DOM", "DOM.Iterable", "ES2022"],

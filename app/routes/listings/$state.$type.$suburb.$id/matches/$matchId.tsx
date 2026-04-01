@@ -1,4 +1,4 @@
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { PublicLayout } from "~/components/layout/PublicLayout";
 import MatchDetailPage from "~/features/listings/pages/MatchDetailPage";
 import type { Route } from "./+types/$matchId";

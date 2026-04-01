@@ -1,4 +1,4 @@
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { redirect, useNavigate } from "react-router";
 import { PublicLayout } from "~/components/layout/PublicLayout";
 import { CreateListingForm } from "~/features/listings/components/forms/CreateListingForm";

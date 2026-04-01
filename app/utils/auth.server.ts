@@ -1,5 +1,5 @@
 import { createClerkClient } from "@clerk/react-router/api.server";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { ConvexHttpClient } from "convex/browser";
 import { redirect } from "react-router";
 import { isAdminAccess } from "../../shared/auth/admin";

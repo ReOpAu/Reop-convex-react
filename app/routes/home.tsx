@@ -1,4 +1,4 @@
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { Conversation } from "~/components/conversation";
 import { BuyerGuide } from "~/components/home/BuyerGuide";
 import { CallToAction } from "~/components/home/CallToAction";

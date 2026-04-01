@@ -1,4 +1,4 @@
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { Benefits } from "~/components/about/Benefits";
 import { FAQ } from "~/components/about/FAQ";
 import { AboutHero } from "~/components/about/Hero";
