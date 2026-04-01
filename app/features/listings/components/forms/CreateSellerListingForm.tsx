@@ -1,5 +1,5 @@
 import { api } from "@/convex/_generated/api";
-import { useUser } from "@clerk/clerk-react";
+import { useUser } from "@clerk/react-router";
 import { useMutation } from "convex/react";
 import { AlertCircle, Building2, Home } from "lucide-react";
 import ngeohash from "ngeohash";

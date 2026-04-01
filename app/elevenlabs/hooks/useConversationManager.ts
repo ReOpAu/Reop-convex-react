@@ -29,43 +29,48 @@ export function useConversationManager(clientTools: Record<string, any>) {
 
 	// Conversation setup with enhanced clientTools and complete event handling
 	const conversation = useConversation({
-		apiKey: import.meta.env.VITE_ELEVENLABS_API_KEY,
 		agentId: import.meta.env.VITE_ELEVENLABS_ADDRESS_AGENT_ID,
-		onConnect: () => {
+		onConnect: ({ conversationId }) => {
 			log("🔗 Connected to ElevenLabs");
+			log("🆔 Conversation ID:", conversationId);
 			connectionAttempts.current = 0; // Reset on successful connection
 			// Note: Centralized sync effect will handle sync automatically
 		},
-		onDisconnect: () => {
-			log("🔌 Disconnected from ElevenLabs");
+		onDisconnect: (details) => {
+			log("🔌 Disconnected from ElevenLabs", details);
 			// Force state update on external disconnect
 			// Using .getState() is safe here as it's outside the React render cycle
 			useUIStore.getState().setIsRecording(false);
 			useUIStore.getState().setIsVoiceActive(false);
 		},
-		onTranscription: (text: string) => {
-			if (text?.trim()) {
-				log("📝 Transcription received:", text);
-				addHistory({ type: "user", text: `Transcribed: "${text}"` });
-			} else {
-				log("📝 Empty or null transcription received");
+		onMessage: (message) => {
+			if ((message.role ?? message.source) === "user") {
+				if (message.message?.trim()) {
+					log("📝 Transcription received:", message.message);
+					addHistory({
+						type: "user",
+						text: `Transcribed: "${message.message}"`,
+					});
+				} else {
+					log("📝 Empty or null transcription received");
+				}
+				return;
 			}
-		},
-		onMessage: (message: any) => {
+
 			log("🤖 Agent message received:", message);
-			if (message.source === "ai" && message.message) {
+			if (message.message) {
 				addHistory({ type: "agent", text: message.message });
 			}
 		},
 		onStatusChange: ({ status }) => {
 			log("🔄 Conversation status changed:", status);
 		},
-		onError: (error) => {
-			log("❌ Conversation error:", error);
-			addHistory({ type: "system", text: `Error: ${error}` });
+		onError: (message, context) => {
+			log("❌ Conversation error:", message, context);
+			addHistory({ type: "system", text: `Error: ${message}` });
 
 			// Handle connection errors with retry logic
-			const errorMessage = error?.toString() || "";
+			const errorMessage = message || "";
 			const isConnectionError =
 				errorMessage.includes("connection") ||
 				errorMessage.includes("websocket") ||
@@ -100,38 +105,33 @@ export function useConversationManager(clientTools: Record<string, any>) {
 			}
 		},
 		// Enhanced event handlers for full API compliance
-		onPing: () => {
-			log("🏓 PING received - responding automatically");
-			// SDK should handle PING response automatically, but log for debugging
-		},
-		onAudioReceived: (audioData: any) => {
+		onAudio: (base64Audio) => {
 			log("🔊 Audio data received:", {
-				eventId: audioData?.eventId,
-				audioLength: audioData?.audio?.length,
+				audioLength: base64Audio?.length,
 				format: "base64",
 			});
 			// Audio playback is typically handled by SDK automatically
 		},
-		onClientToolCall: (toolCall: any) => {
+		onUnhandledClientToolCall: (toolCall) => {
 			log("🔧 Client tool call event received:", {
-				toolName: toolCall?.name,
+				toolName: toolCall?.tool_name,
 				parameters: toolCall?.parameters,
-				callId: toolCall?.id,
+				callId: toolCall?.tool_call_id,
 			});
-			// clientTools are automatically invoked by SDK, but log for debugging
+			// This only fires when a client tool call is not auto-handled by the SDK.
 		},
-		onConversationInitiated: (metadata: any) => {
+		onConversationMetadata: (metadata) => {
 			log("🚀 Conversation initiated with metadata:", {
-				conversationId: metadata?.conversationId,
-				audioFormat: metadata?.audioFormat,
-				sampleRate: metadata?.sampleRate,
+				conversationId: metadata?.conversation_id,
+				agentOutputAudioFormat: metadata?.agent_output_audio_format,
+				userInputAudioFormat: metadata?.user_input_audio_format,
 			});
 			addHistory({
 				type: "system",
-				text: `Conversation started (ID: ${metadata?.conversationId || "unknown"})`,
+				text: `Conversation started (ID: ${metadata?.conversation_id || "unknown"})`,
 			});
 		},
-		onVoiceActivityDetection: (vadScore: number) => {
+		onVadScore: ({ vadScore }) => {
 			// Use configurable thresholds from store
 			const thresholds = useUIStore.getState().vadThresholds;
 

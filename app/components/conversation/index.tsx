@@ -1,5 +1,6 @@
 "use client";
 
+import { ConversationProvider } from "@elevenlabs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -13,6 +14,14 @@ import type { Language, Message } from "./types";
 import { CONVERSATION_CONFIG } from "./types";
 
 export function Conversation() {
+	return (
+		<ConversationProvider>
+			<ConversationContent />
+		</ConversationProvider>
+	);
+}
+
+function ConversationContent() {
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [isAgentTyping, setIsAgentTyping] = useState(false);
 	const [selectedLanguage, setSelectedLanguage] = useState<Language>("en");
@@ -47,7 +56,8 @@ export function Conversation() {
 					...prev,
 					{
 						text: message.message,
-						sender: message.source === "user" ? "user" : "agent",
+						sender:
+							(message.role ?? message.source) === "user" ? "user" : "agent",
 						isTranscribed: false,
 					},
 				];

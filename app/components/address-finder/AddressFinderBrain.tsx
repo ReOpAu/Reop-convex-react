@@ -1,3 +1,4 @@
+import { ConversationProvider } from "@elevenlabs/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "convex/_generated/api";
 import { useAction } from "convex/react";
@@ -84,6 +85,14 @@ export interface AddressFinderBrainHandlers {
 }
 
 export function AddressFinderBrain({ children }: AddressFinderBrainProps) {
+	return (
+		<ConversationProvider>
+			<AddressFinderBrainContent>{children}</AddressFinderBrainContent>
+		</ConversationProvider>
+	);
+}
+
+function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 	const queryClient = useQueryClient();
 	const { syncToAgent } = useAgentSync();
 

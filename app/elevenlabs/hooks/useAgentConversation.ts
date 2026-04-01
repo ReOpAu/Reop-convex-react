@@ -43,6 +43,9 @@ export function useAgentConversation(config: AgentConversationConfig) {
 		getSessionToken,
 		clearSessionToken,
 		onSelectResult,
+		onMessage,
+		onUserMessage,
+		onTranscription,
 		textOnly = true,
 		overrides,
 		...eventHandlers
@@ -61,9 +64,15 @@ export function useAgentConversation(config: AgentConversationConfig) {
 
 	// Create conversation with agent-specific configuration
 	const conversation = useConversation({
-		apiKey: import.meta.env.VITE_ELEVENLABS_API_KEY,
 		clientTools,
 		textOnly,
+		onMessage: (message) => {
+			onMessage?.(message);
+			if ((message.role ?? message.source) === "user") {
+				onUserMessage?.(message.message);
+				onTranscription?.(message.message);
+			}
+		},
 		...eventHandlers,
 	});
 

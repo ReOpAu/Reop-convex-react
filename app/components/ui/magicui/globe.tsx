@@ -8,7 +8,16 @@ import { cn } from "app/lib/utils";
 
 const MOVEMENT_DAMPING = 1400;
 
-const GLOBE_CONFIG: COBEOptions = {
+type GlobeRenderState = COBEOptions & {
+	width: number;
+	height: number;
+};
+
+type GlobeOptionsWithRender = COBEOptions & {
+	onRender?: (state: GlobeRenderState) => void;
+};
+
+const GLOBE_CONFIG: GlobeOptionsWithRender = {
 	width: 800,
 	height: 800,
 	onRender: () => {},
@@ -41,7 +50,7 @@ export function Globe({
 	config = GLOBE_CONFIG,
 }: {
 	className?: string;
-	config?: COBEOptions;
+	config?: GlobeOptionsWithRender;
 }) {
 	let phi = 0;
 	let width = 0;
@@ -91,7 +100,7 @@ export function Globe({
 				state.width = width * 2;
 				state.height = width * 2;
 			},
-		});
+		} as GlobeOptionsWithRender);
 
 		setTimeout(() => {
 			if (canvasRef.current) {
