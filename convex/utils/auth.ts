@@ -124,6 +124,31 @@ export async function getCurrentUser(
 	return user;
 }
 
+export async function getAuthenticatedUserIdentifiers(
+	ctx: DbCtx,
+): Promise<{
+	tokenIdentifier: string;
+	subject?: string;
+} | null> {
+	const identity = await ctx.auth.getUserIdentity();
+	if (!identity) {
+		return null;
+	}
+
+	const { user } = await findUserByIdentity(ctx, identity);
+	if (user) {
+		return {
+			tokenIdentifier: user.tokenIdentifier,
+			subject: user.subject,
+		};
+	}
+
+	return {
+		tokenIdentifier: identity.tokenIdentifier,
+		subject: identity.subject,
+	};
+}
+
 export async function requireCurrentUser(
 	ctx: QueryCtx | MutationCtx,
 ): Promise<Doc<"users">> {

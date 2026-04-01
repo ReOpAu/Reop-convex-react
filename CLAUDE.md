@@ -195,6 +195,9 @@ VITE_CONVEX_URL=your_convex_url_here
 # Clerk Authentication
 VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key_here
 CLERK_SECRET_KEY=your_clerk_secret_key_here
+ADMIN_EMAIL_ALLOWLIST=admin@example.com
+ADMIN_USER_ID_ALLOWLIST=user_123
+ADMIN_TOKEN_IDENTIFIER_ALLOWLIST=https://clerk.your-instance/user_123
 
 # Polar.sh Configuration
 POLAR_ACCESS_TOKEN=your_polar_access_token_here
@@ -208,9 +211,21 @@ OPENAI_API_KEY=your_openai_api_key_here
 VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_access_token_here
 GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 
+# Cartesia Configuration
+CARTESIA_API_KEY=your_cartesia_api_key_here
+CARTESIA_BRIDGE_SECRET=shared_secret_used_by_convex_and_cartesia_agent
+VITE_CARTESIA_AGENT_ID=your_cartesia_agent_id_here
+VITE_CARTESIA_API_KEY=your_cartesia_api_key_here # local fallback only
+
 # Application URL
 FRONTEND_URL=http://localhost:5173
 ```
+
+### Auth and Admin Notes
+- Admin access is granted if any allowlist matches, or Clerk metadata/session claims expose `role`, `roles`, or `isAdmin` with `admin`, `owner`, or `superadmin`.
+- Use `ADMIN_TOKEN_IDENTIFIER_ALLOWLIST` when Convex auth tokens identify users differently from Clerk's `userId`.
+- `/api/chat` and `/api/nearbyPlaces` are authenticated HTTP endpoints. They return `401` without Clerk auth and only allow `FRONTEND_URL` as the CORS origin.
+- `CARTESIA_BRIDGE_SECRET` must match between Convex and the Cartesia deployment. Never expose it to the browser.
 
 ### Development Workflow
 1. Run `npm install` to install dependencies

@@ -5,6 +5,7 @@ import { api } from "./_generated/api";
 import { action, httpAction, mutation, query } from "./_generated/server";
 import {
 	findUserByIdentifier,
+	getAuthenticatedUserIdentifiers,
 	getCurrentUser,
 	requireIdentity,
 } from "./utils/auth";
@@ -262,15 +263,15 @@ export const createCheckoutSession = action({
 export const checkUserSubscriptionStatus = query({
 	args: {},
 	handler: async (ctx) => {
-		const user = await getCurrentUser(ctx);
-		if (!user) {
+		const identifiers = await getAuthenticatedUserIdentifiers(ctx);
+		if (!identifiers) {
 			return { hasActiveSubscription: false };
 		}
 
-		const subscriptions = await listSubscriptionsForUserIdentifiers(ctx, [
-			user.tokenIdentifier,
-			user.subject ?? "",
-		].filter(Boolean));
+		const subscriptions = await listSubscriptionsForUserIdentifiers(
+			ctx,
+			[identifiers.tokenIdentifier, identifiers.subject ?? ""].filter(Boolean),
+		);
 
 		const activeSubscription = subscriptions.find(
 			(subscription) => subscription.status === "active",
@@ -285,15 +286,15 @@ export const checkUserSubscriptionStatus = query({
 export const fetchUserSubscription = query({
 	args: {},
 	handler: async (ctx) => {
-		const user = await getCurrentUser(ctx);
-		if (!user) {
+		const identifiers = await getAuthenticatedUserIdentifiers(ctx);
+		if (!identifiers) {
 			return null;
 		}
 
-		const subscriptions = await listSubscriptionsForUserIdentifiers(ctx, [
-			user.tokenIdentifier,
-			user.subject ?? "",
-		].filter(Boolean));
+		const subscriptions = await listSubscriptionsForUserIdentifiers(
+			ctx,
+			[identifiers.tokenIdentifier, identifiers.subject ?? ""].filter(Boolean),
+		);
 
 		return pickPrimarySubscription(subscriptions);
 	},

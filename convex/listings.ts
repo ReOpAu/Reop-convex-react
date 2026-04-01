@@ -249,7 +249,22 @@ export const listMyListings = query({
 		pageSize: v.optional(v.number()),
 	},
 	handler: async (ctx, { listingType, page = 1, pageSize = 24 }) => {
-		const user = await requireCurrentUser(ctx);
+		const identity = await ctx.auth.getUserIdentity();
+		if (!identity) {
+			return {
+				listings: [],
+				pagination: paginate([], page, pageSize).pagination,
+			};
+		}
+
+		const user = await getCurrentUser(ctx);
+		if (!user) {
+			return {
+				listings: [],
+				pagination: paginate([], page, pageSize).pagination,
+			};
+		}
+
 		const listings = await ctx.db.query("listings").collect();
 		const filteredListings = sortListingsByNewest(
 			listings.filter(

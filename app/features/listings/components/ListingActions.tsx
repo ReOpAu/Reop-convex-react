@@ -1,5 +1,5 @@
 import { useConvexAuth } from "convex/react";
-import { Eye, Mail, Phone, User } from "lucide-react";
+import { Eye, Info, User } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -23,7 +23,7 @@ export interface ListingActionsProps {
 }
 
 export const ListingActions: React.FC<ListingActionsProps> = ({ listing }) => {
-	const [showContactInfo, setShowContactInfo] = useState(false);
+	const [showContactNotice, setShowContactNotice] = useState(false);
 	const { isAuthenticated } = useConvexAuth();
 	const hasExactLocation =
 		listing.hasExactLocation !== false &&
@@ -32,9 +32,8 @@ export const ListingActions: React.FC<ListingActionsProps> = ({ listing }) => {
 
 	const handleContactClick = () => {
 		if (isAuthenticated) {
-			setShowContactInfo(true);
+			setShowContactNotice(true);
 		} else {
-			// Redirect to sign in or show sign in modal
 			window.location.href = "/sign-in";
 		}
 	};
@@ -61,25 +60,17 @@ export const ListingActions: React.FC<ListingActionsProps> = ({ listing }) => {
 					onClick={handleContactClick}
 				>
 					<User className="w-4 h-4 mr-2" />
-					Contact Owner
+					{isAuthenticated ? "Contact Owner" : "Sign In to Contact Owner"}
 				</Button>
 
-				{/* Contact Information (shown after clicking Contact) */}
-				{showContactInfo && (
-					<div className="space-y-2 p-3 bg-gray-50 rounded-lg">
-						<div className="flex items-center gap-2">
-							<Phone className="w-4 h-4 text-gray-500" />
-							<span className="text-sm">
-								{/* TODO: Get actual contact info from user profile */}
-								(555) 123-4567
-							</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<Mail className="w-4 h-4 text-gray-500" />
-							<span className="text-sm">
-								{/* TODO: Get actual contact info from user profile */}
-								owner@example.com
-							</span>
+				{showContactNotice && (
+					<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+						<div className="flex items-start gap-2">
+							<Info className="mt-0.5 h-4 w-4 shrink-0" />
+							<p>
+								Direct owner contact is not available in this release yet. Save
+								the listing now and check back once verified messaging is live.
+							</p>
 						</div>
 					</div>
 				)}

@@ -102,6 +102,7 @@ Since loopback tools cannot emit custom WebSocket events to the browser, we use 
 |----------|----------|-------------|
 | `GEMINI_API_KEY` | Yes | Google Gemini API key for the LLM |
 | `CONVEX_URL` | Yes | Convex deployment URL (e.g., `https://your-deployment.convex.cloud`) |
+| `CARTESIA_BRIDGE_SECRET` | Yes | Shared secret required for `cartesia/sessionState:pushUpdate` |
 | `LLM_MODEL` | No | LiteLLM model string (default: `gemini/gemini-2.5-flash`) |
 | `CARTESIA_VOICE_ID` | No | Cartesia voice UUID (default: Barbershop Man) |
 | `CARTESIA_SESSION_ID` | No | Session ID for state bridge (default: `default`) |
@@ -111,8 +112,11 @@ These are set on the Cartesia deployment, **not** in a local `.env` file (the de
 ```bash
 cartesia env set --agent-id=<AGENT_ID> \
   GEMINI_API_KEY=<your_key> \
-  CONVEX_URL=https://your-deployment.convex.cloud
+  CONVEX_URL=https://your-deployment.convex.cloud \
+  CARTESIA_BRIDGE_SECRET=<shared_secret>
 ```
+
+`CARTESIA_BRIDGE_SECRET` must match the secret configured in Convex. The browser never receives this value.
 
 ## Local Development
 
@@ -201,7 +205,7 @@ convex/
 
 1. Browser calls Convex action `cartesia.getAccessToken` which mints a short-lived JWT via `POST https://api.cartesia.ai/access-token` using the server-side `CARTESIA_API_KEY`.
 2. Browser connects to `wss://api.cartesia.ai/agents/stream/{agent_id}?access_token={token}`.
-3. Fallback for local dev: uses `VITE_CARTESIA_API_KEY` directly as `?api_key=`.
+3. Fallback for local dev: uses `VITE_CARTESIA_API_KEY` directly as `?api_key=` when Convex token minting is unavailable.
 
 ### Required Browser-Side Env Vars
 
@@ -210,6 +214,7 @@ convex/
 VITE_CARTESIA_AGENT_ID=<your_agent_id>
 VITE_CARTESIA_API_KEY=<your_api_key>        # Fallback for local dev
 CARTESIA_API_KEY=<your_api_key>             # For Convex token minting (set via npx convex env set)
+CARTESIA_BRIDGE_SECRET=<shared_secret>      # Must match the Cartesia deployment env
 ```
 
 ## LLM Configuration

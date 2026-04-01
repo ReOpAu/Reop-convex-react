@@ -80,6 +80,9 @@ VITE_CONVEX_URL=your_convex_url_here
 # Clerk Authentication
 VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key_here
 CLERK_SECRET_KEY=your_clerk_secret_key_here
+ADMIN_EMAIL_ALLOWLIST=admin@example.com
+ADMIN_USER_ID_ALLOWLIST=user_123
+ADMIN_TOKEN_IDENTIFIER_ALLOWLIST=https://clerk.your-instance/user_123
 
 # Polar.sh Configuration
 POLAR_ACCESS_TOKEN=your_polar_access_token_here
@@ -96,8 +99,9 @@ VITE_ELEVENLABS_ADDRESS_AGENT_ID=your_agent_id_here
 
 # Cartesia Configuration (for Cartesia voice agent)
 CARTESIA_API_KEY=your_cartesia_api_key_here
-VITE_CARTESIA_API_KEY=your_cartesia_api_key_here
+CARTESIA_BRIDGE_SECRET=shared_secret_used_by_convex_and_cartesia_agent
 VITE_CARTESIA_AGENT_ID=your_cartesia_agent_id_here
+VITE_CARTESIA_API_KEY=your_cartesia_api_key_here # local fallback only
 
 # Frontend URL for redirects
 FRONTEND_URL=http://localhost:5173
@@ -112,6 +116,11 @@ npx convex dev
 5. Set up your Polar.sh webhook endpoint:
    - URL: `{your_domain}/webhook/polar`
    - Events: All subscription events
+
+6. Configure admin access in Clerk:
+   - Allow access when any one of the admin allowlists matches.
+   - Or set Clerk metadata/session claims with `role`, `roles`, or `isAdmin` containing `admin`, `owner`, or `superadmin`.
+   - Use `ADMIN_TOKEN_IDENTIFIER_ALLOWLIST` when your Convex token identifier differs from the Clerk user ID.
 
 ### Development
 
@@ -346,13 +355,25 @@ Make sure to deploy the output of `npm run build`
 - `POLAR_ACCESS_TOKEN` - Polar.sh API access token
 - `POLAR_ORGANIZATION_ID` - Your Polar.sh organization ID
 - `POLAR_WEBHOOK_SECRET` - Polar.sh webhook secret
+- `ADMIN_EMAIL_ALLOWLIST` - Comma-separated admin email allowlist
+- `ADMIN_USER_ID_ALLOWLIST` - Comma-separated Clerk user ID allowlist
+- `ADMIN_TOKEN_IDENTIFIER_ALLOWLIST` - Comma-separated Convex token identifier allowlist
 - `OPENAI_API_KEY` - OpenAI API key for chat features
 - `VITE_ELEVENLABS_API_KEY` - ElevenLabs API key for voice AI
 - `ELEVENLABS_API_KEY` - ElevenLabs API key for sync scripts
 - `VITE_ELEVENLABS_ADDRESS_AGENT_ID` - Your ElevenLabs agent ID
 - `CARTESIA_API_KEY` - Cartesia API key (server-side, set in Convex env)
+- `CARTESIA_BRIDGE_SECRET` - Shared secret required for Cartesia state bridge writes
 - `VITE_CARTESIA_AGENT_ID` - Your Cartesia agent ID
+- `VITE_CARTESIA_API_KEY` - Optional local fallback when not minting Cartesia tokens via Convex
 - `FRONTEND_URL` - Your production frontend URL
+
+### Auth Expectations
+
+- `/api/chat` and `/api/nearbyPlaces` require an authenticated Clerk/Convex request and return `401` otherwise.
+- Those HTTP endpoints only allow the configured `FRONTEND_URL` as a cross-origin caller.
+- Read-only signed-in flows tolerate a missing Convex `users` row on first touch, but authenticated writes still bootstrap the row server-side through `api.users.upsertUser`.
+- Cartesia browser sessions register through Convex, but only the Cartesia agent can push updates and it must present the shared `CARTESIA_BRIDGE_SECRET`.
 
 ## Project Structure
 
