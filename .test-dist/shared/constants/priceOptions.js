@@ -1,0 +1,17 @@
+export const PRICE_OPTIONS = [
+    { value: 500000, label: "$500,000" },
+    { value: 600000, label: "$600,000" },
+    { value: 700000, label: "$700,000" },
+    { value: 800000, label: "$800,000" },
+    { value: 900000, label: "$900,000" },
+    { value: 1000000, label: "$1,000,000" },
+    { value: 1250000, label: "$1,250,000" },
+    { value: 1500000, label: "$1,500,000" },
+    { value: 1750000, label: "$1,750,000" },
+    { value: 2000000, label: "$2,000,000" },
+    { value: 2500000, label: "$2,500,000" },
+    { value: 3000000, label: "$3,000,000" },
+    { value: 3500000, label: "$3,500,000" },
+    { value: 4000000, label: "$4,000,000" },
+    { value: 5000000, label: "$5,000,000" },
+];

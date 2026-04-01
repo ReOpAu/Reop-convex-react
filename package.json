@@ -5,6 +5,7 @@
 	"scripts": {
 		"build": "react-router build",
 		"dev": "react-router dev",
+		"postinstall": "node scripts/fix-elevenlabs-esm.mjs",
 		"start": "react-router-serve ./build/server/index.js",
 		"typecheck": "react-router typegen && tsc",
 		"test:hardening": "mkdir -p .test-dist && node_modules/.bin/esbuild tests/hardening.test.ts --bundle --platform=node --format=esm --packages=external --outfile=.test-dist/hardening.test.mjs && node --test .test-dist/hardening.test.mjs",
