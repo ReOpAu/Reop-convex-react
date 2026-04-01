@@ -121,6 +121,7 @@ export function useAddressFinderClientTools(
 
 				// STATE RESET: Per documentation, a new search must clear any existing selection.
 				setSelectedResult(null);
+				useUIStore.getState().setSelectionAcknowledged(false);
 
 				const { query } = params;
 
@@ -644,6 +645,7 @@ export function useAddressFinderClientTools(
 				log("🔧 Tool Call: clearSelection");
 				// Directly call the centralized action
 				clearSelectionAndSearch();
+				useUIStore.getState().setSelectionAcknowledged(false);
 				log("✅ Selection and search cleared via centralized action.");
 				return JSON.stringify({ status: "cleared" });
 			},

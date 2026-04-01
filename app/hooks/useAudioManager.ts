@@ -89,6 +89,9 @@ export function useAudioManager() {
 				log("✅ RECORDING STARTED SUCCESSFULLY");
 			} catch (err) {
 				log("❌ RECORDING START FAILED:", err);
+				setIsRecording(false);
+				setIsVoiceActive(false);
+				cleanupAudio();
 				console.error("Error starting recording:", err);
 				addHistory({
 					type: "system",
@@ -96,7 +99,14 @@ export function useAudioManager() {
 				});
 			}
 		},
-		[addHistory, cleanupAudio, log, setIsRecording, setAgentRequestedManual],
+		[
+			addHistory,
+			cleanupAudio,
+			log,
+			setIsRecording,
+			setIsVoiceActive,
+			setAgentRequestedManual,
+		],
 	);
 
 	const stopRecording = useCallback(

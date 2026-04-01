@@ -1,4 +1,5 @@
 import { useIntentStore } from "~/stores/intentStore";
+import { useUIStore } from "~/stores/uiStore";
 import type { ActionContext } from "./types";
 
 /**
@@ -22,6 +23,7 @@ export function createClearActions(ctx: ActionContext) {
 		}
 
 		ctx.clearSelectionAndSearch();
+		useUIStore.getState().setSelectionAcknowledged(false);
 		ctx.addHistory({ type: context, text: "State cleared." });
 		ctx.log("✅ ALL STATE CLEARED");
 

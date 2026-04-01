@@ -198,7 +198,7 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 	// Initialize conversation lifecycle with the handleSelectResult
 	const {
 		conversation,
-		handleStartRecording,
+		handleStartRecording: startConversationRecording,
 		handleStopRecording,
 		handleRequestAgentState,
 	} = useConversationLifecycle({
@@ -336,14 +336,20 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 		}
 	}, [shouldClassifyByVelocity, velocityDetectedIntent, searchQuery, log]);
 
+	const handleStartRecording = useCallback(() => {
+		setSelectionAcknowledged(false);
+		startConversationRecording();
+	}, [setSelectionAcknowledged, startConversationRecording]);
+
 	// Handle typing in manual search form
 	const handleManualTyping = useCallback(
 		(query: string) => {
 			if (!isRecallMode && !selectedResult) {
+				setSelectionAcknowledged(false);
 				setActiveSearch({ query, source: "manual" });
 			}
 		},
-		[setActiveSearch, isRecallMode, selectedResult],
+		[setActiveSearch, setSelectionAcknowledged, isRecallMode, selectedResult],
 	);
 
 	// Computed state
