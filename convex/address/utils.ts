@@ -6,6 +6,16 @@ import type { LocationIntent, PlaceSuggestion } from "@shared/types/location";
 // Re-export the canonical implementation
 export { classifyLocationIntent } from "@shared/utils/intentClassification";
 
+export function buildAddressValidationRequest(address: string) {
+	return {
+		address: {
+			regionCode: "AU",
+			addressLines: [address],
+		},
+		enableUspsCass: false,
+	};
+}
+
 // Helper to clean suburb strings
 function cleanSuburbString(str: string): string {
 	return str
@@ -688,13 +698,7 @@ async function validateAddressOnly(
 	isRuralException?: boolean;
 	validationGranularity?: string;
 }> {
-	const requestBody = {
-		address: {
-			regionCode: "AU",
-			addressLines: [address],
-		},
-		enableUspsCass: false,
-	};
+	const requestBody = buildAddressValidationRequest(address);
 	const response = await fetch(
 		`https://addressvalidation.googleapis.com/v1:validateAddress?key=${apiKey}`,
 		{

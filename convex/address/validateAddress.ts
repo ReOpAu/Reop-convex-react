@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action } from "../_generated/server";
+import { buildAddressValidationRequest } from "./utils";
 
 export const validateAddress = action({
 	args: {
@@ -26,7 +27,7 @@ export const validateAddress = action({
 			};
 		}
 		try {
-			const requestBody = { address: { addressLines: [args.address] } };
+			const requestBody = buildAddressValidationRequest(args.address);
 			const response = await fetch(
 				`https://addressvalidation.googleapis.com/v1:validateAddress?key=${apiKey}`,
 				{
