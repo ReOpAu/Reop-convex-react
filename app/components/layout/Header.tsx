@@ -1,4 +1,4 @@
-import { UserButton } from "@clerk/react-router";
+import { UserButton, useAuth } from "@clerk/react-router";
 import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 
@@ -16,6 +16,8 @@ export function Header({
 }: {
 	loaderData?: { isSignedIn: boolean };
 }) {
+	const { isSignedIn } = useAuth();
+
 	return (
 		<header className="sticky top-0 z-50 border-b border-market-line/70 bg-market-paper/85 backdrop-blur-xl">
 			<nav className="mx-auto flex max-w-[1360px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -44,7 +46,7 @@ export function Header({
 				</div>
 
 				<div className="flex items-center gap-2 sm:gap-3">
-					{loaderData?.isSignedIn ? (
+					{(loaderData?.isSignedIn ?? isSignedIn) ? (
 						<UserButton />
 					) : (
 						<>
