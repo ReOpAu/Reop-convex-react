@@ -40,7 +40,7 @@ This removes one network/service hop from the Google path and lets us optimize t
 
 ## Phase 1: Shared Extraction
 
-**Status:** In progress, started in this turn.
+**Status:** Completed on 2026-04-02.
 
 ### Completed in Phase 1
 
@@ -64,6 +64,25 @@ This removes one network/service hop from the Google path and lets us optimize t
 
 ## Phase 2: Native App Endpoints
 
+**Status:** Completed on 2026-04-02.
+
+### Completed in Phase 2
+
+- Added native JSON route handlers for:
+  - [app/routes/api.address.search.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/routes/api.address.search.ts)
+  - [app/routes/api.address.details.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/routes/api.address.details.ts)
+  - [app/routes/api.address.validate.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/routes/api.address.validate.ts)
+  - [app/routes/api.address.select.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/routes/api.address.select.ts)
+- Added request-schema validation and no-store JSON response helpers:
+  - [app/lib/address/contracts.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/lib/address/contracts.ts)
+  - [app/lib/address/api-route.server.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/lib/address/api-route.server.ts)
+- Registered the new API endpoints and wired the previously added health route in:
+  - [app/routes.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/routes.ts)
+- Added a combined server-side selection service for future one-hop selection flow:
+  - [app/lib/address/google-address.server.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/lib/address/google-address.server.ts)
+- Expanded shared validation metadata so native routes can surface rural-exception details without duplicating Google requests:
+  - [shared/address/googleAddressValidation.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/shared/address/googleAddressValidation.ts)
+
 ### Files to add
 
 - `app/routes/api.address.search.ts`
@@ -86,7 +105,7 @@ This removes one network/service hop from the Google path and lets us optimize t
 #### `POST /api/address/validate`
 
 - Input: `address`
-- Output: same shape as current Convex `validateAddress`
+- Output: current Convex `validateAddress` shape plus top-level validation metadata (`isRuralException`, `validationGranularity`, `formattedAddress`, `placeId`, `location`)
 
 #### `POST /api/address/select`
 

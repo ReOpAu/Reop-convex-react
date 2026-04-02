@@ -12,6 +12,7 @@ import {
 	validateAddressWithGoogle,
 	type GoogleAddressValidationResult,
 } from "@shared/address/googleAddressValidation";
+import type { Suggestion } from "~/stores/types";
 
 export interface AddressSearchRequest {
 	query: string;
@@ -32,6 +33,47 @@ function getGoogleMapsApiKey() {
 		throw new Error("GOOGLE_MAPS_API_KEY is not configured");
 	}
 	return apiKey;
+}
+
+type PlaceDetails = Extract<GooglePlaceDetailsResult, { success: true }>["details"];
+
+export type AddressSelectionServiceResult =
+	| {
+			success: true;
+			selection: Suggestion;
+			details: PlaceDetails;
+			validation: GoogleAddressValidationResult;
+	  }
+	| {
+			success: false;
+			error: string;
+			details?: PlaceDetails;
+			validation?: GoogleAddressValidationResult;
+	  };
+
+function classifySelectionIntent(
+	types: string[],
+	description: string,
+): Exclude<LocationIntent, "general"> | "general" {
+	if (
+		types.includes("street_address") ||
+		types.includes("premise") ||
+		/^(unit\s+|apt\s+|apartment\s+|shop\s+|suite\s+)?\d+[a-z]?([/-]\d+[a-z]?(-\d+[a-z]?)?)?\s+/i.test(
+			description.trim(),
+		)
+	) {
+		return "address";
+	}
+
+	if (types.includes("route")) {
+		return "street";
+	}
+
+	if (types.includes("locality") || types.includes("sublocality")) {
+		return "suburb";
+	}
+
+	return "general";
 }
 
 export async function getPlaceSuggestionsService(args: AddressSearchRequest) {
@@ -116,4 +158,61 @@ export async function validateAddressService(args: {
 		address: args.address,
 		apiKey: getGoogleMapsApiKey(),
 	});
+}
+
+export async function selectAddressService(args: {
+	placeId: string;
+	description?: string;
+	sessionToken?: string;
+}): Promise<AddressSelectionServiceResult> {
+	const detailsResult = await getPlaceDetailsService({
+		placeId: args.placeId,
+		sessionToken: args.sessionToken,
+	});
+
+	if (!detailsResult.success) {
+		return {
+			success: false,
+			error: detailsResult.error,
+		};
+	}
+
+	const validation = await validateAddressService({
+		address: detailsResult.details.formattedAddress,
+	});
+
+	if (!validation.success) {
+		return {
+			success: false,
+			error: validation.error,
+			details: detailsResult.details,
+			validation,
+		};
+	}
+
+	const description =
+		validation.formattedAddress ??
+		detailsResult.details.formattedAddress ??
+		args.description ??
+		"";
+
+	return {
+		success: true,
+		selection: {
+			description,
+			displayText: description,
+			placeId: validation.placeId ?? detailsResult.details.placeId,
+			lat: validation.location?.latitude ?? detailsResult.details.lat,
+			lng: validation.location?.longitude ?? detailsResult.details.lng,
+			types: detailsResult.details.types,
+			suburb: detailsResult.details.suburb,
+			postcode: detailsResult.details.postcode,
+			resultType: classifySelectionIntent(
+				detailsResult.details.types,
+				description,
+			),
+		},
+		details: detailsResult.details,
+		validation,
+	};
 }

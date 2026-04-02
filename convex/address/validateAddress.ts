@@ -12,6 +12,16 @@ export const validateAddress = action({
 			isValid: v.boolean(),
 			result: v.any(),
 			error: v.optional(v.string()),
+			isRuralException: v.optional(v.boolean()),
+			validationGranularity: v.optional(v.string()),
+			formattedAddress: v.optional(v.string()),
+			placeId: v.optional(v.string()),
+			location: v.optional(
+				v.object({
+					latitude: v.number(),
+					longitude: v.number(),
+				}),
+			),
 		}),
 		v.object({
 			success: v.literal(false),

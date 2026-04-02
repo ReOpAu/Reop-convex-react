@@ -7,6 +7,7 @@ import {
 
 export default [
 	index("routes/home.tsx"),
+	route("health", "routes/health.tsx"),
 	route("sign-in/*", "routes/sign-in.tsx"),
 	route("sign-up/*", "routes/sign-up.tsx"),
 	route("pricing", "routes/pricing.tsx"),
@@ -15,6 +16,10 @@ export default [
 	route("about", "routes/about.tsx"),
 	route("address-finder", "routes/address-finder.tsx"),
 	route("address-finder-cartesia", "routes/address-finder-cartesia.tsx"),
+	route("api/address/search", "routes/api.address.search.ts"),
+	route("api/address/details", "routes/api.address.details.ts"),
+	route("api/address/validate", "routes/api.address.validate.ts"),
+	route("api/address/select", "routes/api.address.select.ts"),
 	route("blog", "routes/blog/index.tsx"),
 	route("blog/:slug", "routes/blog/$slug.tsx"),
 	// Listings feature routes - complex hierarchical structure
