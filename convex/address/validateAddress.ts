@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { action } from "../_generated/server";
-import { buildAddressValidationRequest } from "./utils";
+import { validateAddressWithGoogle } from "@shared/address/googleAddressValidation";
 
 export const validateAddress = action({
 	args: {
@@ -26,65 +26,9 @@ export const validateAddress = action({
 				error: "Google Places API key not configured",
 			};
 		}
-		try {
-			const requestBody = buildAddressValidationRequest(args.address);
-			const response = await fetch(
-				`https://addressvalidation.googleapis.com/v1:validateAddress?key=${apiKey}`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(requestBody),
-				},
-			);
-			if (!response.ok) {
-				const errorBody = await response.text();
-				return {
-					success: false as const,
-					error: `Google API Error: ${response.statusText}`,
-				};
-			}
-			const responseData = await response.json();
-			const result = responseData.result;
-			const verdict = result.verdict || {};
-			let isValid = true;
-			let validationError = "";
-			const validationGranularity = verdict.validationGranularity || "";
-			if (!verdict.addressComplete) {
-				isValid = false;
-				validationError =
-					"Address is considered incomplete by the validation service.";
-			} else {
-				const hasHouseNumber = /^\d+/.test(args.address.trim());
-				if (hasHouseNumber) {
-					if (
-						validationGranularity !== "PREMISE" &&
-						validationGranularity !== "SUB_PREMISE"
-					) {
-						isValid = false;
-						validationError = `Address validation insufficient. Google could not confirm the exact location of the street number. Granularity: ${validationGranularity}.`;
-					}
-				}
-				if (isValid && result.address?.addressComponents) {
-					for (const component of result.address.addressComponents) {
-						if (component.confirmationLevel === "UNCONFIRMED_AND_SUSPICIOUS") {
-							isValid = false;
-							validationError = `Address component '${component.componentName?.text}' was suspicious.`;
-							break;
-						}
-					}
-				}
-			}
-			return {
-				success: true as const,
-				isValid: isValid,
-				result,
-				error: validationError || undefined,
-			};
-		} catch (error) {
-			return {
-				success: false as const,
-				error: `An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`,
-			};
-		}
+		return validateAddressWithGoogle({
+			address: args.address,
+			apiKey,
+		});
 	},
 });

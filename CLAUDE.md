@@ -195,6 +195,7 @@ VITE_CONVEX_URL=your_convex_url_here
 # Clerk Authentication
 VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key_here
 CLERK_SECRET_KEY=your_clerk_secret_key_here
+VITE_CLERK_FRONTEND_API_URL=your_clerk_frontend_api_url_here
 ADMIN_EMAIL_ALLOWLIST=admin@example.com
 ADMIN_USER_ID_ALLOWLIST=user_123
 ADMIN_TOKEN_IDENTIFIER_ALLOWLIST=https://clerk.your-instance/user_123
@@ -203,6 +204,7 @@ ADMIN_TOKEN_IDENTIFIER_ALLOWLIST=https://clerk.your-instance/user_123
 POLAR_ACCESS_TOKEN=your_polar_access_token_here
 POLAR_ORGANIZATION_ID=your_polar_organization_id_here
 POLAR_WEBHOOK_SECRET=your_polar_webhook_secret_here
+POLAR_SERVER=sandbox
 
 # OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key_here
@@ -240,9 +242,13 @@ FRONTEND_URL=http://localhost:5173
 - **E2E Testing**: Critical user flows through the application
 
 ## Deployment
-- **Vercel**: Uses `@vercel/react-router` preset for optimal deployment
+- **Default host shape**: Standard Node SSR service, suitable for Docker-based platforms
+- **Vercel**: `@vercel/react-router` preset is enabled only when `VERCEL=1`
 - **Docker**: Dockerfile included for containerized deployment
 - **Environment**: Production builds require all environment variables set
+- **Canonical production origin**: `https://reop.com.au`
+- **Webhook target**: Polar posts to Convex `/payments/webhook`, not a React Router route
+- **Runbook**: See `docs/reop-production-launch.md` for the REOP launch checklist
 
 ## Active Projects
 

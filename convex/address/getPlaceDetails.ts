@@ -1,41 +1,6 @@
 import { v } from "convex/values";
 import { action } from "../_generated/server";
-
-// Field mask for Places API (New) — controls which fields are returned
-const GOOGLE_PLACES_FIELD_MASK =
-	"id,formattedAddress,location,addressComponents,types,displayName";
-
-// TypeScript interfaces for Places API (New) response
-interface NewAddressComponent {
-	longText: string;
-	shortText: string;
-	types: string[];
-	languageCode?: string;
-}
-
-interface NewPlaceDetailsResponse {
-	id?: string;
-	formattedAddress?: string;
-	location?: {
-		latitude: number;
-		longitude: number;
-	};
-	addressComponents?: NewAddressComponent[];
-	types?: string[];
-	displayName?: {
-		text: string;
-		languageCode?: string;
-	};
-}
-
-// Helper function to extract specific address components from the response
-const extractComponent = (
-	components: NewAddressComponent[],
-	type: string,
-): string | undefined => {
-	const component = components.find((c) => c.types.includes(type));
-	return component?.longText;
-};
+import { fetchGooglePlaceDetails } from "@shared/address/googlePlaceDetails";
 
 export const getPlaceDetails = action({
 	args: {
@@ -66,82 +31,10 @@ export const getPlaceDetails = action({
 				error: "Google Places API key not configured",
 			};
 		}
-		try {
-			// Places API (New): GET place by resource name with field mask header
-			const url = new URL(
-				`https://places.googleapis.com/v1/places/${args.placeId}`,
-			);
-			if (args.sessionToken) {
-				url.searchParams.set("sessionToken", args.sessionToken);
-			}
-
-			const res = await fetch(url.toString(), {
-				headers: {
-					"X-Goog-Api-Key": apiKey,
-					"X-Goog-FieldMask": GOOGLE_PLACES_FIELD_MASK,
-				},
-			});
-			if (!res.ok) {
-				const errorData = await res.json().catch(() => ({}));
-				const errorMsg =
-					(errorData as Record<string, any>).error?.message ||
-					`${res.status} ${res.statusText}`;
-				console.error(
-					`[getPlaceDetails] Google Places API error for place ${args.placeId}:`,
-					errorMsg,
-				);
-				return {
-					success: false as const,
-					error: `HTTP error: ${errorMsg}`,
-				};
-			}
-
-			const data: NewPlaceDetailsResponse = await res.json();
-
-			// Validate essential data
-			if (!data.formattedAddress) {
-				return {
-					success: false as const,
-					error: "Missing formattedAddress in response",
-				};
-			}
-
-			if (!data.location) {
-				return {
-					success: false as const,
-					error: "Missing location data in response",
-				};
-			}
-
-			const components = data.addressComponents || [];
-
-			// Extract structured data from the components array
-			const postcode = extractComponent(components, "postal_code");
-			const suburb = extractComponent(components, "locality");
-			const state = extractComponent(components, "administrative_area_level_1");
-
-			const details = {
-				placeId: data.id || args.placeId,
-				formattedAddress: data.formattedAddress,
-				lat: data.location.latitude,
-				lng: data.location.longitude,
-				types: data.types || [],
-				postcode,
-				suburb,
-				state,
-			};
-
-			return { success: true as const, details };
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			console.error(
-				`[getPlaceDetails] Exception for place ${args.placeId}:`,
-				errorMessage,
-			);
-			return {
-				success: false as const,
-				error: errorMessage,
-			};
-		}
+		return fetchGooglePlaceDetails({
+			apiKey,
+			placeId: args.placeId,
+			sessionToken: args.sessionToken,
+		});
 	},
 });

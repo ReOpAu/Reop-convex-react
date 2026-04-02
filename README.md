@@ -80,6 +80,7 @@ VITE_CONVEX_URL=your_convex_url_here
 # Clerk Authentication
 VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key_here
 CLERK_SECRET_KEY=your_clerk_secret_key_here
+VITE_CLERK_FRONTEND_API_URL=your_clerk_frontend_api_url_here
 ADMIN_EMAIL_ALLOWLIST=admin@example.com
 ADMIN_USER_ID_ALLOWLIST=user_123
 ADMIN_TOKEN_IDENTIFIER_ALLOWLIST=https://clerk.your-instance/user_123
@@ -88,6 +89,7 @@ ADMIN_TOKEN_IDENTIFIER_ALLOWLIST=https://clerk.your-instance/user_123
 POLAR_ACCESS_TOKEN=your_polar_access_token_here
 POLAR_ORGANIZATION_ID=your_polar_organization_id_here
 POLAR_WEBHOOK_SECRET=your_polar_webhook_secret_here
+POLAR_SERVER=sandbox
 
 # OpenAI Configuration (for AI chat)
 OPENAI_API_KEY=your_openai_api_key_here
@@ -114,7 +116,7 @@ npx convex dev
 ```
 
 5. Set up your Polar.sh webhook endpoint:
-   - URL: `{your_domain}/webhook/polar`
+   - URL: `https://<your-convex-site>/payments/webhook`
    - Events: All subscription events
 
 6. Configure admin access in Clerk:
@@ -260,15 +262,15 @@ npm run build
 
 ## Deployment
 
-### Vercel Deployment (Recommended)
+### Node/Docker Deployment (Recommended)
 
-This starter kit is optimized for Vercel deployment with the `@vercel/react-router` preset:
+This app is production-ready as a standard SSR Node service:
 
-1. Connect your repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy automatically on push to main branch
+1. Build with `npm run build`
+2. Start with `npm run start`
+3. Put it behind your existing platform or reverse proxy
 
-The `react-router.config.ts` includes the Vercel preset for seamless deployment.
+The repo includes a Dockerfile for container-based hosting, and the Vercel preset is only enabled when `VERCEL=1`.
 
 ### Docker Deployment
 
@@ -315,7 +317,8 @@ Make sure to deploy the output of `npm run build`
 - `/success` - Subscription success page
 - `/address-finder` - Voice AI address finder (ElevenLabs)
 - `/address-finder-cartesia` - Voice AI address finder (Cartesia Line)
-- `/webhook/polar` - Polar.sh webhook handler
+- `/health` - Plain-text health check endpoint
+- Convex HTTP action `/payments/webhook` - Polar.sh webhook handler
 
 ### Key Components
 
@@ -350,15 +353,20 @@ Make sure to deploy the output of `npm run build`
 
 - `CONVEX_DEPLOYMENT` - Your Convex deployment URL
 - `VITE_CONVEX_URL` - Your Convex client URL
+- `VITE_CONVEX_SITE_URL` - Optional explicit Convex site URL for HTTP actions/webhooks
 - `VITE_CLERK_PUBLISHABLE_KEY` - Clerk publishable key
 - `CLERK_SECRET_KEY` - Clerk secret key
+- `VITE_CLERK_FRONTEND_API_URL` - Clerk frontend API URL / domain used by `convex/auth.config.ts`
 - `POLAR_ACCESS_TOKEN` - Polar.sh API access token
 - `POLAR_ORGANIZATION_ID` - Your Polar.sh organization ID
 - `POLAR_WEBHOOK_SECRET` - Polar.sh webhook secret
+- `POLAR_SERVER` - `sandbox` for test mode, `production` for live billing
 - `ADMIN_EMAIL_ALLOWLIST` - Comma-separated admin email allowlist
 - `ADMIN_USER_ID_ALLOWLIST` - Comma-separated Clerk user ID allowlist
 - `ADMIN_TOKEN_IDENTIFIER_ALLOWLIST` - Comma-separated Convex token identifier allowlist
 - `OPENAI_API_KEY` - OpenAI API key for chat features
+- `GOOGLE_MAPS_API_KEY` - Google Maps server-side API key
+- `VITE_GOOGLE_MAPS_API_KEY` - Google Maps browser API key
 - `VITE_ELEVENLABS_API_KEY` - ElevenLabs API key for voice AI
 - `ELEVENLABS_API_KEY` - ElevenLabs API key for sync scripts
 - `VITE_ELEVENLABS_ADDRESS_AGENT_ID` - Your ElevenLabs agent ID
@@ -366,14 +374,22 @@ Make sure to deploy the output of `npm run build`
 - `CARTESIA_BRIDGE_SECRET` - Shared secret required for Cartesia state bridge writes
 - `VITE_CARTESIA_AGENT_ID` - Your Cartesia agent ID
 - `VITE_CARTESIA_API_KEY` - Optional local fallback when not minting Cartesia tokens via Convex
+- `VITE_MAPBOX_ACCESS_TOKEN` - Mapbox token for listing map features
 - `FRONTEND_URL` - Your production frontend URL
 
 ### Auth Expectations
 
 - `/api/chat` and `/api/nearbyPlaces` require an authenticated Clerk/Convex request and return `401` otherwise.
 - Those HTTP endpoints only allow the configured `FRONTEND_URL` as a cross-origin caller.
+- Polar webhooks terminate at Convex `/payments/webhook`, not a React Router route.
 - Read-only signed-in flows tolerate a missing Convex `users` row on first touch, but authenticated writes still bootstrap the row server-side through `api.users.upsertUser`.
 - Cartesia browser sessions register through Convex, but only the Cartesia agent can push updates and it must present the shared `CARTESIA_BRIDGE_SECRET`.
+
+## REOP Production Launch
+
+For the `reop.com.au` cutover, use `https://reop.com.au` as the canonical origin and redirect `https://www.reop.com.au` to it. The app now supports a normal Node/Docker deploy by default, and billing/auth/data services should be cut over in the same window.
+
+See [`docs/reop-production-launch.md`](docs/reop-production-launch.md) for the deployment topology, DNS shape, env checklist, webhook target, and smoke-test list.
 
 ## Project Structure
 
