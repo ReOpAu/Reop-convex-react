@@ -1,5 +1,5 @@
-import { UserButton, useAuth } from "@clerk/react-router";
-import { Link } from "react-router";
+import { Link } from "@tanstack/react-router";
+import { UserButton, useAuth } from "@clerk/tanstack-react-start";
 import { Button } from "~/components/ui/button";
 
 const navItems = [
@@ -56,7 +56,7 @@ export function Header({
 								size="sm"
 								className="rounded-full border-market-line/80 bg-white/70 px-4 text-market-ink shadow-none hover:bg-white"
 							>
-								<Link to="/sign-in" prefetch="viewport">
+								<Link to="/sign-in" preload="viewport">
 									Sign In
 								</Link>
 							</Button>
@@ -65,7 +65,7 @@ export function Header({
 								size="sm"
 								className="rounded-full border border-market-forest bg-market-forest px-4 text-market-paper shadow-[0_18px_35px_-22px_rgba(38,70,61,0.85)] hover:bg-market-forest/92"
 							>
-								<Link to="/sign-up" prefetch="viewport">
+								<Link to="/sign-up" preload="viewport">
 									Create Brief
 								</Link>
 							</Button>

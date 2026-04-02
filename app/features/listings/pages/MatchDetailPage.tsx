@@ -1,6 +1,6 @@
+import { useParams } from "@tanstack/react-router";
 import { MapPin } from "lucide-react";
 import type React from "react";
-import { useParams } from "react-router";
 import { Badge } from "../../../components/ui/badge";
 import { Card, CardContent } from "../../../components/ui/card";
 import {
@@ -21,7 +21,7 @@ import {
 import { parseListingParams } from "../utils/urlHelpers";
 
 const MatchDetailPage: React.FC = () => {
-	const params = useParams();
+	const params = useParams({ strict: false });
 	const { id: originalListingId } = parseListingParams(params);
 	const matchedListingId = params.matchId;
 

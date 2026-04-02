@@ -1,19 +1,20 @@
 import { ArrowLeft, Plus } from "lucide-react";
 import type React from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { Button } from "../../../components/ui/button";
 import { CreateListingForm } from "../components/forms";
 
 const CreateListingPage: React.FC = () => {
 	const navigate = useNavigate();
+	const router = useRouter();
 
-	const handleSuccess = (listingId: string) => {
+	const handleSuccess = (_listingId: string) => {
 		// Navigate to the created listing or listings overview
-		navigate("/listings/my-listings");
+		navigate({ to: "/listings/my-listings" });
 	};
 
 	const handleCancel = () => {
-		navigate(-1); // Go back to previous page
+		router.history.back();
 	};
 
 	return (

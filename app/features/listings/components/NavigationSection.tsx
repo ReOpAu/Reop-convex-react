@@ -1,9 +1,9 @@
 import { ArrowLeft } from "lucide-react";
 import type React from "react";
-import { Link } from "react-router";
+import { Link } from "@tanstack/react-router";
 import { Button } from "../../../components/ui/button";
 import type { ConvexListing } from "../types";
-import { generateMatchesUrl } from "../utils/urlHelpers";
+import { getListingRouteParams } from "../utils/urlHelpers";
 
 interface NavigationSectionProps {
 	originalListing: ConvexListing;
@@ -18,7 +18,10 @@ export const NavigationSection: React.FC<NavigationSectionProps> = ({
 		<div className="flex items-center justify-between">
 			<div className="flex items-center gap-4">
 				<Button variant="ghost" asChild>
-					<Link to={generateMatchesUrl(originalListing)}>
+					<Link
+						to="/listings/$state/$type/$suburb/$id/matches"
+						params={getListingRouteParams(originalListing)}
+					>
 						<ArrowLeft className="w-4 h-4 mr-2" />
 						Back to Matches
 					</Link>
@@ -27,7 +30,8 @@ export const NavigationSection: React.FC<NavigationSectionProps> = ({
 				{matchedListing && (
 					<Button variant="outline" asChild>
 						<Link
-							to={`/listings/${originalListing.state.toLowerCase()}/${originalListing.listingType}/${originalListing.suburb.toLowerCase()}/${originalListing._id}`}
+							to="/listings/$state/$type/$suburb/$id"
+							params={getListingRouteParams(originalListing)}
 						>
 							View Original Listing
 						</Link>

@@ -1,6 +1,6 @@
 import { AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react";
 import type React from "react";
-import { Link } from "react-router";
+import { Link } from "@tanstack/react-router";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardFooter } from "../../../components/ui/card";
 

@@ -1,12 +1,12 @@
 import { api } from "@/convex/_generated/api";
-import { useUser } from "@clerk/react-router";
+import { Link } from "@tanstack/react-router";
+import { useUser } from "@clerk/tanstack-react-start";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "convex/react";
 import { ArrowLeft, Building2, Home, Plus } from "lucide-react";
 import ngeohash from "ngeohash";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
@@ -76,7 +76,6 @@ const PRICE_OPTIONS = [
 
 export function CreateListingFormComponent() {
 	const { user } = useUser();
-	const navigate = useNavigate();
 	const createListing = useMutation(api.listings.createListing);
 	const [isLoading, setIsLoading] = useState(false);
 
@@ -137,7 +136,7 @@ export function CreateListingFormComponent() {
 			};
 
 			const listingId = await createListing({ listing: listingData as any });
-			navigate(`/listings/my-listings?created=${listingId}`);
+			window.location.assign(`/listings/my-listings?created=${listingId}`);
 		} catch (error) {
 			console.error("Failed to create listing:", error);
 			form.setError("root", {

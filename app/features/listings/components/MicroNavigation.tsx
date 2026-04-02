@@ -1,6 +1,6 @@
 import { ChevronRight } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import React from "react";
-import { Link } from "react-router";
 
 export interface NavigationPath {
 	label: string;

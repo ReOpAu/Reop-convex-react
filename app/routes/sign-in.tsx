@@ -1,4 +1,4 @@
-import { SignIn } from "@clerk/react-router";
+import { SignIn } from "@clerk/tanstack-react-start";
 
 export default function SignInPage() {
 	return (

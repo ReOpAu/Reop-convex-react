@@ -1,5 +1,5 @@
 import type React from "react";
-import { Link } from "react-router";
+import { Link } from "@tanstack/react-router";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Badge } from "../../../components/ui/badge";
 import { Card, CardContent } from "../../../components/ui/card";

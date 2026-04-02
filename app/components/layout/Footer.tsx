@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "@tanstack/react-router";
 
 export function Footer() {
 	return (
@@ -54,14 +54,14 @@ export function Footer() {
 						<Link to="/blog" className="text-sm text-market-ink/72 transition-colors hover:text-market-forest">
 							Journal
 						</Link>
-						<Link
-							to="https://x.com/rasmickyy"
+						<a
+							href="https://x.com/rasmickyy"
 							target="_blank"
 							rel="noopener noreferrer"
 							className="text-sm text-market-ink/72 transition-colors hover:text-market-forest"
 						>
 							X / Twitter
-						</Link>
+						</a>
 					</div>
 				</div>
 			</div>

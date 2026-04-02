@@ -1,4 +1,4 @@
-import { useAuth } from "@clerk/react-router";
+import { useAuth } from "@clerk/tanstack-react-start";
 import { ExternalLink, Loader2, Star } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";

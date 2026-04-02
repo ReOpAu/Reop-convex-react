@@ -1,5 +1,5 @@
 "use client";
-import { useAuth } from "@clerk/react-router";
+import { useAuth } from "@clerk/tanstack-react-start";
 import { useAction, useQuery } from "convex/react";
 import { Calendar, CreditCard, ExternalLink, Loader2 } from "lucide-react";
 import { useState } from "react";

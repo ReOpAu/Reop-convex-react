@@ -2,7 +2,7 @@ import { useConvexAuth } from "convex/react";
 import { Eye, Info, User } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link } from "@tanstack/react-router";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "../../../components/ui/button";
 import {

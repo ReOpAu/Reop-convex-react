@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Link } from "react-router";
+import { Link } from "@tanstack/react-router";
 import { Header } from "~/components/layout/Header";
 import { LogoIcon } from "~/components/logo";
 import {
@@ -78,7 +78,7 @@ export default function IntegrationsSection({
 													: "/pricing"
 												: "/sign-up"
 										}
-										prefetch="viewport"
+										preload="viewport"
 									>
 										{loaderData?.isSignedIn
 											? loaderData?.hasActiveSubscription
@@ -88,13 +88,13 @@ export default function IntegrationsSection({
 									</Link>
 								</Button>
 								<Button variant="outline" size="sm" asChild>
-									<Link
-										to="https://github.com/michaelshimeles/react-starter-kit"
+									<a
+										href="https://github.com/michaelshimeles/react-starter-kit"
 										target="_blank"
 										rel="noopener noreferrer"
 									>
 										⭐️ Start on GitHub
-									</Link>
+									</a>
 								</Button>
 							</div>
 						</div>

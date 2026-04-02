@@ -1,5 +1,4 @@
-import { SignOutButton } from "@clerk/react-router";
-import { useClerk } from "@clerk/react-router";
+import { useClerk } from "@clerk/tanstack-react-start";
 import {
 	IconDotsVertical,
 	IconLogout,

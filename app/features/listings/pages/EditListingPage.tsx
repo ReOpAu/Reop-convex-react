@@ -1,13 +1,14 @@
 import type { Id } from "@/convex/_generated/dataModel";
+import { Link, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { ArrowLeft, Edit } from "lucide-react";
 import type React from "react";
-import { Link, useNavigate, useParams } from "react-router";
 import { Button } from "../../../components/ui/button";
 import { EditListingForm } from "../components/forms";
 
 const EditListingPage: React.FC = () => {
 	const navigate = useNavigate();
-	const { id } = useParams<{ id: string }>();
+	const router = useRouter();
+	const { id } = useParams({ strict: false }) as { id?: string };
 
 	if (!id) {
 		return (
@@ -27,13 +28,13 @@ const EditListingPage: React.FC = () => {
 		);
 	}
 
-	const handleSuccess = (listingId: string) => {
+	const handleSuccess = (_listingId: string) => {
 		// Navigate to the updated listing or listings overview
-		navigate(`/listings/my-listings`);
+		navigate({ to: "/listings/my-listings" });
 	};
 
 	const handleCancel = () => {
-		navigate(-1); // Go back to previous page
+		router.history.back();
 	};
 
 	return (

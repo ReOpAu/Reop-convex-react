@@ -1,8 +1,8 @@
 "use client";
 
 import type { Icon } from "@tabler/icons-react";
+import { Link, useLocation } from "@tanstack/react-router";
 import type * as React from "react";
-import { Link, useLocation } from "react-router";
 
 import {
 	SidebarGroup,
@@ -39,7 +39,7 @@ export function NavSecondary({
 							<SidebarMenuItem key={item.title}>
 								{isImplemented ? (
 									<SidebarMenuButton isActive={isActive} asChild>
-										<Link to={item.url} prefetch="intent">
+										<Link to={item.url} preload="intent">
 											<item.icon />
 											<span>{item.title}</span>
 										</Link>

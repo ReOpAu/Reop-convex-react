@@ -1,7 +1,6 @@
-import { createClerkClient } from "@clerk/react-router/api.server";
-import { getAuth } from "@clerk/react-router/server";
+import { clerkClient, auth } from "@clerk/tanstack-react-start/server";
 import { ConvexHttpClient } from "convex/browser";
-import { redirect } from "react-router";
+import { redirect } from "@tanstack/react-router";
 import { isAdminAccess } from "../../shared/auth/admin";
 
 function getConvexUrl() {
@@ -13,37 +12,37 @@ function getConvexUrl() {
 	return convexUrl;
 }
 
-export async function requireSignedInRoute(args: Parameters<typeof getAuth>[0]) {
-	const auth = await getAuth(args);
-	if (!auth.userId) {
-		throw redirect("/sign-in");
+export async function requireSignedInRoute(_args?: unknown) {
+	const authState = await auth();
+	if (!authState.userId) {
+		throw redirect({ to: "/sign-in" });
 	}
 
-	return auth;
+	return authState;
 }
 
 export async function createAuthedConvexServerClient(
-	args: Parameters<typeof getAuth>[0],
+	args?: unknown,
 ) {
-	const auth = await requireSignedInRoute(args);
-	const token = await auth.getToken({ template: "convex" });
+	const authState = await requireSignedInRoute(args);
+	const token = await authState.getToken({ template: "convex" });
 
 	if (!token) {
-		throw redirect("/sign-in");
+		throw redirect({ to: "/sign-in" });
 	}
 
 	const client = new ConvexHttpClient(getConvexUrl());
 	client.setAuth(token);
 
-	return { auth, client };
+	return { auth: authState, client };
 }
 
-export async function requireAdminRoute(args: Parameters<typeof getAuth>[0]) {
-	const auth = await requireSignedInRoute(args);
-	const clerk = createClerkClient({
+export async function requireAdminRoute(args?: unknown) {
+	const authState = await requireSignedInRoute(args);
+	const clerk = clerkClient({
 		secretKey: process.env.CLERK_SECRET_KEY,
 	});
-	const user = await clerk.users.getUser(auth.userId);
+	const user = await clerk.users.getUser(authState.userId);
 	const email =
 		user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress;
 	const isAdmin = isAdminAccess({
@@ -52,12 +51,12 @@ export async function requireAdminRoute(args: Parameters<typeof getAuth>[0]) {
 		role: user.publicMetadata?.role,
 		publicMetadata: user.publicMetadata,
 		privateMetadata: user.privateMetadata,
-		sessionClaims: auth.sessionClaims,
+		sessionClaims: authState.sessionClaims,
 	});
 
 	if (!isAdmin) {
 		throw new Response("Not found", { status: 404 });
 	}
 
-	return { auth, user };
+	return { auth: authState, user };
 }

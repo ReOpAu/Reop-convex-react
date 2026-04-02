@@ -1,8 +1,8 @@
 import { api } from "@/convex/_generated/api";
+import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { ArrowLeft, Home, MapPin, TrendingUp, Users } from "lucide-react";
 import type React from "react";
-import { Link, useParams } from "react-router";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
@@ -15,7 +15,7 @@ import { ListingsDisplay } from "../components/ListingsDisplay";
 import { MicroNavigation } from "../components/MicroNavigation";
 
 const StateListingsPage: React.FC = () => {
-	const { state } = useParams<{ state: string }>();
+	const { state } = useParams({ strict: false }) as { state?: string };
 
 	// State-specific info (could be moved to a config file)
 	const stateInfo = {

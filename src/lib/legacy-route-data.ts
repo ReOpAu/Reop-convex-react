@@ -1,4 +1,4 @@
-import { isRedirect } from "@tanstack/react-router";
+import { isRedirect, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 
 type RouteGuardResult =
@@ -69,19 +69,34 @@ export const loadAdminGuard = createServerFn({ method: "GET" }).handler(
 
 export const loadDashboardShell = createServerFn({ method: "GET" }).handler(
 	async () => {
-		const { loader } = await import("../../app/routes/dashboard/layout");
+		const [{ createAuthedConvexServerClient }, { clerkClient }, { api }] =
+			await Promise.all([
+				import("../../app/utils/auth.server"),
+				import("@clerk/tanstack-react-start/server"),
+				import("../../convex/_generated/api"),
+			]);
 
 		try {
-			const data = await loader(undefined as never);
+			const { auth, client } = await createAuthedConvexServerClient();
+			const [subscriptionStatus, user] = await Promise.all([
+				client.query(api.subscriptions.checkUserSubscriptionStatus, {}),
+				clerkClient({
+					secretKey: process.env.CLERK_SECRET_KEY,
+				}).users.getUser(auth.userId),
+			]);
+
+			if (!subscriptionStatus?.hasActiveSubscription) {
+				throw redirect({ to: "/subscription-required" });
+			}
 
 			return {
 				status: "ok" as const,
 				data: {
 					user: {
-						firstName: data.user.firstName,
-						lastName: data.user.lastName,
-						imageUrl: data.user.imageUrl,
-						emailAddresses: data.user.emailAddresses.map((email) => ({
+						firstName: user.firstName,
+						lastName: user.lastName,
+						imageUrl: user.imageUrl,
+						emailAddresses: user.emailAddresses.map((email) => ({
 							emailAddress: email.emailAddress,
 						})),
 					},

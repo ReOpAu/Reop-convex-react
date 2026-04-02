@@ -1,6 +1,6 @@
 import { ArrowRightLeft, Eye, MapPin } from "lucide-react";
 import type React from "react";
-import { Link } from "react-router";
+import { Link } from "@tanstack/react-router";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {

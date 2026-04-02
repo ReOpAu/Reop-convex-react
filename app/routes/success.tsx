@@ -1,9 +1,9 @@
 "use client";
-import { useAuth } from "@clerk/react-router";
+import { Link } from "@tanstack/react-router";
+import { useAuth } from "@clerk/tanstack-react-start";
 import { useMutation, useQuery } from "convex/react";
 import { ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 import { useEffect } from "react";
-import { Link } from "react-router";
 import { PublicLayout } from "~/components/layout/PublicLayout";
 import { Button } from "~/components/ui/button";
 import {

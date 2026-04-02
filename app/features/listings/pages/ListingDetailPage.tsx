@@ -1,6 +1,6 @@
+import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, MapPin } from "lucide-react";
 import type React from "react";
-import { Link, useParams } from "react-router";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
@@ -23,7 +23,7 @@ import {
 } from "../utils/urlHelpers";
 
 const ListingDetailPage: React.FC = () => {
-	const params = useParams();
+	const params = useParams({ strict: false });
 	const { id: listingId, state, type, suburb } = parseListingParams(params);
 	const listing = useListingById(listingId || "");
 	const matchesResult = useMatchesForListing(listingId || "", {

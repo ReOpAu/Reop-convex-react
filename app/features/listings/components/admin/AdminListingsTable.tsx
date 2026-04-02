@@ -1,4 +1,5 @@
 import { api } from "@/convex/_generated/api";
+import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import {
 	Calendar,
@@ -13,7 +14,6 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { Link } from "react-router";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -34,6 +34,7 @@ import {
 	TableRow,
 } from "~/components/ui/table";
 import type { ConvexListing } from "../../types";
+import { getListingRouteParams } from "../../utils/urlHelpers";
 import { DeleteListingButton } from "../forms";
 
 interface AdminListingsTableProps {
@@ -336,13 +337,17 @@ export const AdminListingsTable: React.FC<AdminListingsTableProps> = ({
 										<div className="flex items-center gap-1">
 											<Button variant="ghost" size="sm" asChild>
 												<Link
-													to={`/listings/${listing.state.toLowerCase()}/${listing.listingType}/${listing.suburb.toLowerCase().replace(/\s+/g, "-")}/${listing._id}`}
+													to="/listings/$state/$type/$suburb/$id"
+													params={getListingRouteParams(listing)}
 												>
 													<Eye className="w-3 h-3" />
 												</Link>
 											</Button>
 											<Button variant="ghost" size="sm" asChild>
-												<Link to={`/admin/listings/edit/${listing._id}`}>
+												<Link
+													to="/admin/listings/edit/$id"
+													params={{ id: String(listing._id) }}
+												>
 													<Edit className="w-3 h-3" />
 												</Link>
 											</Button>

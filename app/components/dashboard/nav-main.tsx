@@ -1,8 +1,7 @@
 import type { Icon } from "@tabler/icons-react";
+import { Link, useLocation } from "@tanstack/react-router";
 import { memo, useMemo } from "react";
 import type { ComponentType } from "react";
-
-import { Link, useLocation } from "react-router";
 import {
 	SidebarGroup,
 	SidebarGroupContent,
@@ -43,7 +42,7 @@ export const NavMain = memo(
 									isActive={item.isActive}
 									asChild
 								>
-									<Link to={item.url} prefetch="intent">
+									<Link to={item.url} preload="intent">
 										{item.icon && <item.icon />}
 										<span>{item.title}</span>
 									</Link>

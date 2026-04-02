@@ -1,6 +1,6 @@
+import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft, MapPin, TrendingUp, Users } from "lucide-react";
 import type React from "react";
-import { Link, useParams } from "react-router";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { ListingsDisplay } from "../components/ListingsDisplay";
@@ -8,11 +8,11 @@ import { MicroNavigation } from "../components/MicroNavigation";
 import type { ListingType } from "../types";
 
 const SuburbListingsPage: React.FC = () => {
-	const { state, type, suburb } = useParams<{
-		state: string;
-		type: string;
-		suburb: string;
-	}>();
+	const { state, type, suburb } = useParams({ strict: false }) as {
+		state?: string;
+		type?: string;
+		suburb?: string;
+	};
 	const listingType = type as ListingType;
 
 	return (
@@ -21,7 +21,10 @@ const SuburbListingsPage: React.FC = () => {
 				{/* Header with navigation */}
 				<div className="flex items-center gap-4 mb-8">
 					<Button variant="ghost" asChild>
-						<Link to={`/listings/${state}/${type}`}>
+						<Link
+							to="/listings/$state/$type"
+							params={{ state: state ?? "", type: type ?? "" }}
+						>
 							<ArrowLeft className="w-4 h-4 mr-2" />
 							Back to {type}s
 						</Link>

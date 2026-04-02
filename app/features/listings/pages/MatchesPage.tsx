@@ -1,8 +1,7 @@
+import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft, Eye } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { useParams } from "react-router";
-import { Link } from "react-router";
 import { Alert, AlertDescription } from "../../../components/ui/alert";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
@@ -73,7 +72,7 @@ function generatePaginationItems(currentPage: number, totalPages: number) {
 }
 
 const MatchesPage: React.FC = () => {
-	const params = useParams();
+	const params = useParams({ strict: false });
 	const { id: listingId } = parseListingParams(params);
 	const [currentPage, setCurrentPage] = useState(1);
 	const pageSize = 12; // 12 matches per page

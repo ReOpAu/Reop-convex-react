@@ -1,14 +1,20 @@
 import type { ConvexListing } from "../types";
 
+export function getListingRouteParams(listing: ConvexListing) {
+	return {
+		state: listing.state.toLowerCase(),
+		type: listing.listingType.toLowerCase() as "buyer" | "seller",
+		suburb: listing.suburb.toLowerCase().replace(/\s+/g, "-"),
+		id: String(listing._id),
+	};
+}
+
 /**
  * Generates the complete URL path for a listing following the saaskit specification:
  * /listings/[state]/[type]/[suburb]/[id]
  */
 export function generateListingUrl(listing: ConvexListing): string {
-	const state = listing.state.toLowerCase();
-	const type = listing.listingType.toLowerCase();
-	const suburb = listing.suburb.toLowerCase().replace(/\s+/g, "-");
-	const id = listing._id;
+	const { state, type, suburb, id } = getListingRouteParams(listing);
 
 	return `/listings/${state}/${type}/${suburb}/${id}`;
 }

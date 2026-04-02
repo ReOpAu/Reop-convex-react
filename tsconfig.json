@@ -4,7 +4,6 @@
 		"app",
 		"shared",
 		"remix.env.d.ts",
-		".react-router/types/**/*.ts",
 		"**/*.ts",
 		"**/*.tsx"
 	],
@@ -13,7 +12,6 @@
 		"lib": ["DOM", "DOM.Iterable", "ES2022"],
 		"types": ["node", "vite/client"],
 		"module": "ES2022",
-		"jsx": "react-jsx",
-		"rootDirs": [".", "./.react-router/types"]
+		"jsx": "react-jsx"
 	}
 }

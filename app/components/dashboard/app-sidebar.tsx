@@ -1,6 +1,6 @@
 import { IconDashboard, IconSettings } from "@tabler/icons-react";
+import { Link } from "@tanstack/react-router";
 import { MessageCircle } from "lucide-react";
-import { Link } from "react-router";
 import {
 	Sidebar,
 	SidebarContent,
@@ -47,7 +47,7 @@ export function AppSidebar({
 			<SidebarHeader>
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<Link to="/" prefetch="viewport">
+						<Link to="/" preload="viewport">
 							<span className="text-base font-semibold">Ras Mic Inc.</span>
 						</Link>
 					</SidebarMenuItem>

@@ -1,4 +1,5 @@
 import { api } from "@/convex/_generated/api";
+import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import {
 	Calendar,
@@ -12,7 +13,6 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { Link } from "react-router";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
@@ -24,7 +24,7 @@ import {
 import { Skeleton } from "../../../components/ui/skeleton";
 import { DeleteListingButton } from "../components/forms";
 import { type ConvexListing, formatListingPrice } from "../types";
-import { generateListingUrl } from "../utils/urlHelpers";
+import { getListingRouteParams } from "../utils/urlHelpers";
 
 const formatPrice = (listing: ConvexListing) => {
 	if (listing.priceMin === listing.priceMax) {
@@ -114,7 +114,10 @@ const MyListingCard: React.FC<{
 
 				<div className="flex gap-2 mt-4 pt-4 border-t">
 					<Button variant="outline" size="sm" asChild className="flex-1">
-						<Link to={`${generateListingUrl(listing)}/edit`}>
+						<Link
+							to="/listings/$state/$type/$suburb/$id/edit"
+							params={getListingRouteParams(listing)}
+						>
 							<Edit className="w-3 h-3 mr-1" />
 							Edit
 						</Link>
