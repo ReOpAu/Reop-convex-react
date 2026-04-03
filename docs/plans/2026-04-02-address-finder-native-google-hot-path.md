@@ -116,11 +116,34 @@ This removes one network/service hop from the Google path and lets us optimize t
 
 ## Phase 3: Client Migration
 
+**Status:** Completed on 2026-04-02.
+
 ### Migrate these callers first
 
 - [app/components/address-finder/ManualSearchForm.tsx](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/components/address-finder/ManualSearchForm.tsx#L74)
 - [app/elevenlabs/hooks/useAddressFinderClientTools.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/elevenlabs/hooks/useAddressFinderClientTools.ts#L48)
 - [app/hooks/useActionHandler.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/hooks/useActionHandler.ts#L101)
+
+### Completed in Phase 3
+
+- Added a shared browser transport client for the native address endpoints:
+  - [app/services/address-api.client.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/services/address-api.client.ts)
+- Migrated the primary hot-path callers off Convex and onto `/api/address/*`:
+  - [app/components/address-finder/ManualSearchForm.tsx](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/components/address-finder/ManualSearchForm.tsx)
+  - [app/elevenlabs/hooks/useAddressFinderClientTools.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/elevenlabs/hooks/useAddressFinderClientTools.ts)
+  - [app/hooks/useActionHandler.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/hooks/useActionHandler.ts)
+- Swapped the brain-level place-details dependency to the native client in both conversational shells:
+  - [app/components/address-finder/AddressFinderBrain.tsx](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/components/address-finder/AddressFinderBrain.tsx)
+  - [app/components/address-finder/CartesiaAddressFinderBrain.tsx](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/components/address-finder/CartesiaAddressFinderBrain.tsx)
+- Migrated the secondary lookup utilities and test page to the same native transport:
+  - [app/hooks/useAddressRecall.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/hooks/useAddressRecall.ts)
+  - [app/hooks/useEnhancedPlaceSuggestions.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/hooks/useEnhancedPlaceSuggestions.ts)
+  - [app/hooks/useSuburbAutocomplete.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/hooks/useSuburbAutocomplete.ts)
+  - [app/hooks/useSpellingAutocomplete.ts](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/hooks/useSpellingAutocomplete.ts)
+  - [app/routes/address-validation-tests.tsx](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/routes/address-validation-tests.tsx)
+- Fixed the combobox accessibility contract in the changed manual search UI:
+  - [app/components/address-finder/AddressInput.tsx](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/components/address-finder/AddressInput.tsx)
+  - [app/components/address-finder/ManualSearchForm.tsx](/Users/stewartmilne/MetaBureau/REOPMAIN/react-starter-kit/app/components/address-finder/ManualSearchForm.tsx)
 
 ### Secondary callers
 

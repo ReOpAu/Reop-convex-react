@@ -14,6 +14,10 @@ import {
 import { useAddressFinderActions } from "~/hooks/useAddressFinderActions";
 import { useAddressSession } from "~/hooks/useAddressSession";
 import { useVelocityIntentClassification } from "~/hooks/useVelocityIntentClassification";
+import {
+	getPlaceDetailsApi,
+	searchAddressApi,
+} from "~/services/address-api.client";
 import { useAddressSelectionStore } from "~/stores/addressSelectionStore";
 import type { AddressSelectionEntry } from "~/stores/addressSelectionStore";
 import { useApiStore } from "~/stores/apiStore";
@@ -205,10 +209,6 @@ export function CartesiaAddressFinderBrain({
 		null,
 	);
 
-	const getPlaceSuggestionsAction = useAction(
-		api.address.getPlaceSuggestions.getPlaceSuggestions,
-	);
-
 	const handleRecallPreviousSearch = useCallback(
 		async (entry: SearchHistoryEntry) => {
 			setActiveSearch({ query: entry.query, source: entry.context.mode });
@@ -217,7 +217,7 @@ export function CartesiaAddressFinderBrain({
 			setSelectedResult(null);
 			setIsRecallMode(true);
 
-			const newResults = await getPlaceSuggestionsAction({
+			const newResults = await searchAddressApi({
 				query: entry.query,
 				intent: entry.context.intent as
 					| "general"
@@ -248,7 +248,6 @@ export function CartesiaAddressFinderBrain({
 			setApiResults,
 			setSelectedResult,
 			queryClient,
-			getPlaceSuggestionsAction,
 		],
 	);
 
@@ -305,11 +304,6 @@ export function CartesiaAddressFinderBrain({
 	// Temporary conversation ref for useActionHandler
 	const conversationRef = useRef<any>(null);
 
-	// API actions
-	const getPlaceDetailsAction = useAction(
-		api.address.getPlaceDetails.getPlaceDetails,
-	);
-
 	const {
 		handleSelectResult: consolidatedHandleSelectResult,
 		isValidating,
@@ -331,7 +325,7 @@ export function CartesiaAddressFinderBrain({
 		conversationRef,
 		queryClient,
 		clearSelectionAndSearch,
-		getPlaceDetailsAction,
+		getPlaceDetailsAction: getPlaceDetailsApi,
 		setAgentLastSearchQuery,
 		addAddressSelection,
 		searchQuery,

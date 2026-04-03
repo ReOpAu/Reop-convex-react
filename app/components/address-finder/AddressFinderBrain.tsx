@@ -1,7 +1,5 @@
 import { ConversationProvider } from "@elevenlabs/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "convex/_generated/api";
-import { useAction } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgentSync } from "~/elevenlabs/hooks/useAgentSync";
 import type { RuralConfirmationState } from "~/hooks/actions/types";
@@ -20,6 +18,7 @@ import type { AddressSelectionEntry } from "~/stores/addressSelectionStore";
 import { useApiStore } from "~/stores/apiStore";
 import { useHistoryStore } from "~/stores/historyStore";
 import { useIntentStore } from "~/stores/intentStore";
+import { getPlaceDetailsApi } from "~/services/address-api.client";
 import { useSearchHistoryStore } from "~/stores/searchHistoryStore";
 import type { SearchHistoryEntry } from "~/stores/searchHistoryStore";
 import type { HistoryItem, LocationIntent, Suggestion } from "~/stores/types";
@@ -160,11 +159,6 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 	// Temporary conversation ref for useActionHandler
 	const conversationRef = useRef<any>(null);
 
-	// API actions
-	const getPlaceDetailsAction = useAction(
-		api.address.getPlaceDetails.getPlaceDetails,
-	);
-
 	const {
 		handleSelectResult: consolidatedHandleSelectResult,
 		handleSelect,
@@ -188,7 +182,7 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 		queryClient,
 		clearSelectionAndSearch,
 		// New dependencies for consolidated selection logic
-		getPlaceDetailsAction,
+		getPlaceDetailsAction: getPlaceDetailsApi,
 		setAgentLastSearchQuery,
 		addAddressSelection,
 		searchQuery,

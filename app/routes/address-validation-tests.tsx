@@ -1,5 +1,3 @@
-import { api } from "convex/_generated/api";
-import { useAction } from "convex/react";
 import { useState } from "react";
 import { PublicLayout } from "~/components/layout/PublicLayout";
 import { Badge } from "~/components/ui/badge";
@@ -7,6 +5,11 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import {
+	getPlaceDetailsApi,
+	searchAddressApi,
+	validateAddressApi,
+} from "~/services/address-api.client";
 import type { LocationIntent } from "~/stores/types";
 import { classifyIntent } from "~/utils/addressFinderUtils";
 
@@ -45,17 +48,6 @@ export default function AddressValidationTests() {
 		null,
 	);
 
-	// Direct API actions for testing our actual implementation
-	const getPlaceSuggestions = useAction(
-		api.address.getPlaceSuggestions.getPlaceSuggestions,
-	);
-	const getPlaceDetails = useAction(
-		api.address.getPlaceDetails.getPlaceDetails,
-	);
-	const validateAddress = useAction(
-		api.address.validateAddress.validateAddress,
-	);
-
 	// Common test cases for quick testing
 	const quickTestCases = {
 		street: ["Collins Street", "Chapel Street", "High Street", "Smith Street"],
@@ -92,7 +84,7 @@ export default function AddressValidationTests() {
 			// Step 2: Get place suggestions
 			processingSteps.push("2. Getting place suggestions");
 			const suggestionsStart = Date.now();
-			const suggestionsResult = await getPlaceSuggestions({
+			const suggestionsResult = await searchAddressApi({
 				query: address,
 				intent: intent || "general",
 				isAutocomplete: false,
@@ -127,7 +119,7 @@ export default function AddressValidationTests() {
 				if (firstSuggestion.placeId) {
 					processingSteps.push("3. Getting place details");
 					const detailsStart = Date.now();
-					detailsResult = await getPlaceDetails({
+					detailsResult = await getPlaceDetailsApi({
 						placeId: firstSuggestion.placeId,
 					});
 					const detailsTime = Date.now() - detailsStart;
@@ -151,7 +143,7 @@ export default function AddressValidationTests() {
 			if (detailsResult?.success && detailsResult.details?.formattedAddress) {
 				processingSteps.push("4. Validating address");
 				const validationStart = Date.now();
-				validationResult = await validateAddress({
+				validationResult = await validateAddressApi({
 					address: detailsResult.details.formattedAddress,
 				});
 				const validationTime = Date.now() - validationStart;

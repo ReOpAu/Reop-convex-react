@@ -64,6 +64,7 @@ export interface ActionContext {
 		success: boolean;
 		isValid?: boolean;
 		isRuralException?: boolean;
+		validationGranularity?: string;
 		result?: {
 			address: { formattedAddress: string };
 			geocode: {
@@ -73,6 +74,7 @@ export interface ActionContext {
 		};
 		formattedAddress?: string;
 		placeId?: string;
+		location?: { latitude: number; longitude: number };
 		error?: string;
 	}>;
 

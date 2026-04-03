@@ -1,10 +1,10 @@
 # React Starter Kit (RSK)
 
-A modern, production-ready SaaS starter template for building full-stack React applications using React Router v7, Convex, Clerk, and Polar.sh. Ready for Vercel deployment with built-in AI chat capabilities.
+A modern, production-ready SaaS starter template for building full-stack React applications using TanStack Start, TanStack Router, Convex, Clerk, and Polar.sh. Ready for modern SSR deployment with built-in AI chat capabilities.
 
 ## Features
 
-- 🚀 **React Router v7** - Modern full-stack React framework with SSR
+- 🚀 **TanStack Start + TanStack Router** - Modern full-stack React framework with SSR and file-based routing
 - ⚡️ **Hot Module Replacement (HMR)** - Fast development experience
 - 📦 **Asset bundling and optimization** - Production-ready builds
 - 🔄 **Data loading and mutations** - Built-in loader/action patterns
@@ -19,12 +19,12 @@ A modern, production-ready SaaS starter template for building full-stack React a
 - 📊 **Interactive Dashboard** - User management and analytics
 - 🎯 **Webhook handling** - Payment and subscription events
 - 📱 **Responsive Design** - Mobile-first approach
-- 🚢 **Vercel Deployment Ready** - One-click deployment
+- 🚢 **SSR Deployment Ready** - Built for Node/Docker and compatible SSR hosts
 
 ## Tech Stack
 
 ### Frontend
-- **React Router v7** - Full-stack React framework
+- **TanStack Start + TanStack Router** - Full-stack React framework and file-based router
 - **TailwindCSS v4** - Utility-first CSS framework
 - **shadcn/ui** - Modern component library with Radix UI
 - **Lucide React & Tabler Icons** - Beautiful icon libraries
@@ -381,7 +381,7 @@ Make sure to deploy the output of `npm run build`
 
 - `/api/chat` and `/api/nearbyPlaces` require an authenticated Clerk/Convex request and return `401` otherwise.
 - Those HTTP endpoints only allow the configured `FRONTEND_URL` as a cross-origin caller.
-- Polar webhooks terminate at Convex `/payments/webhook`, not a React Router route.
+- Polar webhooks terminate at Convex `/payments/webhook`, not an app route.
 - Read-only signed-in flows tolerate a missing Convex `users` row on first touch, but authenticated writes still bootstrap the row server-side through `api.users.upsertUser`.
 - Cartesia browser sessions register through Convex, but only the Cartesia agent can push updates and it must present the shared `CARTESIA_BRIDGE_SECRET`.
 
@@ -407,10 +407,15 @@ See [`docs/reop-production-launch.md`](docs/reop-production-launch.md) for the d
 │   │   ├── address-finder/ # Voice AI address finder (ElevenLabs + Cartesia brains)
 │   │   ├── homepage/      # Homepage sections
 │   │   └── dashboard/     # Dashboard components
-│   ├── routes/            # React Router routes
+│   ├── routes/            # Route page modules used by `src/routes/*`
 │   ├── hooks/             # Custom React hooks
 │   ├── stores/            # Zustand state management
 │   └── utils/             # Utility functions
+├── src/
+│   ├── routes/            # TanStack Router file routes and root route
+│   ├── router.tsx         # Router creation with generated route tree
+│   ├── start.ts           # TanStack Start server entry + Clerk middleware
+│   └── routeTree.gen.ts   # Generated TanStack Router route tree
 ├── cartesia-agent/        # Cartesia Line Python agent (deployed to cloud)
 │   ├── main.py            # Agent entry point
 │   ├── tools.py           # 9 loopback tools
@@ -429,14 +434,13 @@ See [`docs/reop-production-launch.md`](docs/reop-production-launch.md) for the d
 ## Key Dependencies
 
 - `react` & `react-dom` v19 - Latest React
-- `react-router` v7 - Full-stack React framework
-- `@clerk/react-router` - Authentication
+- `@tanstack/react-start` & `@tanstack/react-router` - SSR framework and file-based routing
+- `@clerk/tanstack-react-start` - Authentication
 - `convex` - Real-time database
 - `@polar-sh/sdk` - Subscription management
 - `@ai-sdk/openai` & `ai` - AI chat capabilities
 - `@elevenlabs/react` - Voice AI conversations
 - `cartesia-line` - Cartesia Line Python SDK (in `cartesia-agent/`)
-- `@vercel/react-router` - Vercel deployment
 - `tailwindcss` v4 - Styling
 - `@radix-ui/*` - UI primitives
 - `zod` - Type-safe schema validation
@@ -470,4 +474,4 @@ This project is licensed under the MIT License.
 
 **Stop rebuilding the same foundation over and over.** RSK eliminates months of integration work by providing a complete, production-ready SaaS template with authentication, payments, AI chat, and real-time data working seamlessly out of the box.
 
-Built with ❤️ using React Router v7, Convex, Clerk, Polar.sh, and OpenAI.
+Built with ❤️ using TanStack Start, TanStack Router, Convex, Clerk, Polar.sh, and OpenAI.

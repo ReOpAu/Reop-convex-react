@@ -1,7 +1,9 @@
-import { useAction } from "convex/react";
+import type { PlaceSuggestion } from "@shared/types/location";
 import { useCallback, useState } from "react";
-import { api } from "../../convex/_generated/api";
-import type { PlaceSuggestion } from "../../convex/address/types";
+import {
+	searchAddressApi,
+	validateAddressApi,
+} from "~/services/address-api.client";
 import type { LocationIntent } from "../stores/types";
 import { classifyIntent } from "../utils/addressFinderUtils";
 
@@ -42,20 +44,13 @@ export function useSuburbAutocomplete() {
 	const [enhancedResult, setEnhancedResult] =
 		useState<EnhancedSuburbResult | null>(null);
 
-	const getPlaceSuggestions = useAction(
-		api.address.getPlaceSuggestions.getPlaceSuggestions,
-	);
-	const validateAddress = useAction(
-		api.address.validateAddress.validateAddress,
-	);
-
 	// Legacy functions for conversation interface (simplified versions)
 	const lookupSuburb = async (suburbInput: string) => {
 		setIsLoading(true);
 		setError(null);
 
 		try {
-			const result = await getPlaceSuggestions({
+			const result = await searchAddressApi({
 				query: suburbInput,
 				intent: "suburb",
 				maxResults: 1,
@@ -90,7 +85,7 @@ export function useSuburbAutocomplete() {
 		setError(null);
 
 		try {
-			const result = await getPlaceSuggestions({
+			const result = await searchAddressApi({
 				query: suburbInput,
 				intent: "suburb",
 				maxResults: 1,
@@ -134,7 +129,7 @@ export function useSuburbAutocomplete() {
 
 	const lookupSuburbMultiple = async (suburbInput: string, maxResults = 5) => {
 		try {
-			const result = await getPlaceSuggestions({
+			const result = await searchAddressApi({
 				query: suburbInput,
 				intent: "suburb",
 				maxResults,
@@ -171,7 +166,7 @@ export function useSuburbAutocomplete() {
 		setError(null);
 
 		try {
-			const result = await validateAddress({
+			const result = await validateAddressApi({
 				address,
 			});
 
@@ -201,7 +196,7 @@ export function useSuburbAutocomplete() {
 		setDetectedIntent(undefined);
 
 		try {
-			const result = await getPlaceSuggestions({
+			const result = await searchAddressApi({
 				query,
 				intent: intent ?? "suburb",
 				maxResults: options?.maxResults,

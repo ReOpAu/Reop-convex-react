@@ -1,9 +1,8 @@
 import type { useConversation } from "@elevenlabs/react";
-import { type QueryClient, useQueryClient } from "@tanstack/react-query";
-import { api } from "convex/_generated/api";
-import { useAction } from "convex/react";
+import type { QueryClient } from "@tanstack/react-query";
 import { type RefObject, useCallback, useMemo, useState } from "react";
 import { useReliableSync } from "~/elevenlabs/hooks/useReliableSync";
+import { validateAddressApi } from "~/services/address-api.client";
 import type { HistoryItem, LocationIntent, Suggestion } from "~/stores/types";
 
 // Import action factories from decomposed modules
@@ -94,14 +93,11 @@ export function useActionHandler({
 		validation: {
 			formattedAddress?: string;
 			placeId?: string;
+			validationGranularity?: string;
 			error?: string;
 		};
 	} | null>(null);
 
-	// Convex actions
-	const validateAddressAction = useAction(
-		api.address.validateAddress.validateAddress,
-	);
 	const { performReliableSync } = useReliableSync();
 
 	// Build action context
@@ -125,7 +121,7 @@ export function useActionHandler({
 			queryClient,
 			clearSelectionAndSearch,
 			getPlaceDetailsAction,
-			validateAddressAction,
+			validateAddressAction: validateAddressApi,
 			setAgentLastSearchQuery,
 			addAddressSelection,
 			resetRecallMode,
@@ -151,7 +147,6 @@ export function useActionHandler({
 			queryClient,
 			clearSelectionAndSearch,
 			getPlaceDetailsAction,
-			validateAddressAction,
 			setAgentLastSearchQuery,
 			addAddressSelection,
 			resetRecallMode,

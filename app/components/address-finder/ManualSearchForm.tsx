@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { api } from "convex/_generated/api";
-import { useAction } from "convex/react";
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { searchAddressApi } from "~/services/address-api.client";
 import type { Suggestion } from "~/stores/types";
 import { classifyIntent } from "~/utils/addressFinderUtils";
 import { AddressInput } from "./AddressInput";
@@ -66,14 +65,10 @@ export const ManualSearchForm: React.FC<ManualSearchFormProps> = React.memo(
 		const inputRef = useRef<HTMLInputElement>(null);
 		const isUserTypingRef = useRef(false);
 		const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+		const suggestionsListId = "manual-search-suggestions";
 
 		// Google's recommended minimum character threshold
 		const MIN_SEARCH_CHARS = 3;
-
-		// ManualSearchForm's own autocomplete query - completely independent
-		const getPlaceSuggestionsAction = useAction(
-			api.address.getPlaceSuggestions.getPlaceSuggestions,
-		);
 
 		const {
 			data: autocompleteSuggestions = [],
@@ -103,7 +98,7 @@ export const ManualSearchForm: React.FC<ManualSearchFormProps> = React.memo(
 				const safeIntent: AllowedIntent = isAllowedIntent(classifiedIntent)
 					? classifiedIntent
 					: "general";
-				const result = await getPlaceSuggestionsAction({
+				const result = await searchAddressApi({
 					query: internalQuery,
 					intent: safeIntent,
 					isAutocomplete: true, // This is autocomplete mode
@@ -305,11 +300,16 @@ export const ManualSearchForm: React.FC<ManualSearchFormProps> = React.memo(
 					isLoading={isLoading}
 					disabled={disabled}
 					aria-expanded={showSuggestions}
-					aria-haspopup="listbox"
-					aria-autocomplete="list"
-					role="combobox"
-					aria-activedescendant={
-						selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined
+						aria-haspopup="listbox"
+						aria-autocomplete="list"
+						aria-controls={
+							showSuggestions && autocompleteSuggestions.length > 0
+								? suggestionsListId
+								: undefined
+						}
+						role="combobox"
+						aria-activedescendant={
+							selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined
 					}
 				/>
 
@@ -333,8 +333,9 @@ export const ManualSearchForm: React.FC<ManualSearchFormProps> = React.memo(
 					{showSuggestions &&
 						autocompleteSuggestions.length > 0 &&
 						hasMinimumChars && (
-							<motion.div
-								initial={{ opacity: 0 }}
+								<motion.div
+									id={suggestionsListId}
+									initial={{ opacity: 0 }}
 								animate={{ opacity: 1 }}
 								exit={{ opacity: 0 }}
 								transition={{ duration: 0.1 }}

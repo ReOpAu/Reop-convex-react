@@ -1,6 +1,5 @@
-import { useAction } from "convex/react";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../../convex/_generated/api";
+import { searchAddressApi } from "~/services/address-api.client";
 
 export interface SpellingSuggestion {
 	address: string;
@@ -65,9 +64,6 @@ export const useSpellingAutocomplete = (
 		sessionTokenRef.current = null;
 	};
 
-	const autocompleteAction = useAction(
-		api.address.getPlaceSuggestions.getPlaceSuggestions,
-	);
 	const debounceTimerRef = useRef<NodeJS.Timeout>(undefined);
 
 	const getSuggestions = async (input: string) => {
@@ -105,7 +101,7 @@ export const useSpellingAutocomplete = (
 				args.radius = radius;
 			}
 
-			const result = await autocompleteAction(args);
+			const result = await searchAddressApi(args);
 			// Handle the new API response format
 			if (result.success && Array.isArray(result.suggestions)) {
 				// Convert the new format to the expected format

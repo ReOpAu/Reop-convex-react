@@ -1,8 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { api } from "convex/_generated/api";
-import { useAction } from "convex/react";
 import { useCallback, useState } from "react";
 import { useAgentSync } from "~/elevenlabs/hooks/useAgentSync";
+import { searchAddressApi } from "~/services/address-api.client";
 import type { AddressSelectionEntry } from "~/stores/addressSelectionStore";
 import { useApiStore } from "~/stores/apiStore";
 import { useIntentStore } from "~/stores/intentStore";
@@ -25,10 +24,6 @@ export function useAddressRecall() {
 		null,
 	);
 
-	const getPlaceSuggestionsAction = useAction(
-		api.address.getPlaceSuggestions.getPlaceSuggestions,
-	);
-
 	const handleRecallPreviousSearch = useCallback(
 		async (entry: SearchHistoryEntry) => {
 			setActiveSearch({ query: entry.query, source: entry.context.mode });
@@ -38,7 +33,7 @@ export function useAddressRecall() {
 			setIsRecallMode(true);
 
 			// Trigger a new search API call for the recalled query
-			const newResults = await getPlaceSuggestionsAction({
+			const newResults = await searchAddressApi({
 				query: entry.query,
 				intent: entry.context.intent as
 					| "general"
@@ -72,7 +67,6 @@ export function useAddressRecall() {
 			setSelectedResult,
 			syncToAgent,
 			queryClient,
-			getPlaceSuggestionsAction,
 		],
 	);
 

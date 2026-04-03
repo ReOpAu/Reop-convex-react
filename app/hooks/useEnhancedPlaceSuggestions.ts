@@ -1,8 +1,6 @@
-import type { PlaceSuggestion } from "@shared/types/location";
-import { useAction } from "convex/react";
 import { useCallback, useState } from "react";
+import { searchAddressApi } from "~/services/address-api.client";
 import { classifyIntent } from "~/utils/addressFinderUtils";
-import { api } from "../../convex/_generated/api";
 
 export type LocationIntent = "suburb" | "street" | "address" | "general";
 
@@ -43,10 +41,6 @@ export function useEnhancedPlaceSuggestions(
 	const [lastResult, setLastResult] =
 		useState<EnhancedPlaceSearchResult | null>(null);
 
-	const getPlaceSuggestionsAction = useAction(
-		api.address.getPlaceSuggestions.getPlaceSuggestions,
-	);
-
 	const searchPlaces = useCallback(
 		async (query: string): Promise<EnhancedPlaceSearchResult> => {
 			if (!query.trim()) {
@@ -80,7 +74,7 @@ export function useEnhancedPlaceSuggestions(
 					? (classifiedIntent as (typeof allowedIntents)[number])
 					: undefined;
 
-				const result = await getPlaceSuggestionsAction({
+				const result = await searchAddressApi({
 					query: query.trim(),
 					intent: safeIntent,
 					maxResults: options.maxResults || 8,
@@ -121,7 +115,6 @@ export function useEnhancedPlaceSuggestions(
 			}
 		},
 		[
-			getPlaceSuggestionsAction,
 			options.location,
 			options.maxResults,
 			options.radius,

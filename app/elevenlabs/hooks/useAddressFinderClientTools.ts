@@ -1,7 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { api } from "convex/_generated/api";
-import { useAction, useQuery } from "convex/react";
 import { useCallback, useMemo } from "react";
+import {
+	getPlaceDetailsApi,
+	searchAddressApi,
+} from "~/services/address-api.client";
 import {
 	classifyIntent,
 	classifySelectedResult,
@@ -45,12 +47,6 @@ export function useAddressFinderClientTools(
 	onSelectResult?: (suggestion: Suggestion) => Promise<unknown>,
 ) {
 	const queryClient = useQueryClient();
-	const getPlaceSuggestionsAction = useAction(
-		api.address.getPlaceSuggestions.getPlaceSuggestions,
-	);
-	const getPlaceDetailsAction = useAction(
-		api.address.getPlaceDetails.getPlaceDetails,
-	);
 
 	// Cache-first function for place details to prevent duplicate API calls
 	const getCachedOrFetchPlaceDetails = useCallback(
@@ -74,7 +70,7 @@ export function useAddressFinderClientTools(
 			// Fetch from API with retry logic
 			const result = await withRetry(
 				() =>
-					getPlaceDetailsAction({
+					getPlaceDetailsApi({
 						placeId,
 					}),
 				API_RETRY_CONFIG,
@@ -91,7 +87,7 @@ export function useAddressFinderClientTools(
 
 			return result;
 		},
-		[queryClient, getPlaceDetailsAction],
+		[queryClient],
 	);
 
 	// ✅ FIX: All required state values and setters are destructured at the top level.
@@ -155,7 +151,7 @@ export function useAddressFinderClientTools(
 							// Get multiple suggestions to preserve options for "show options again"
 							withRetry(
 								() =>
-									getPlaceSuggestionsAction({
+									searchAddressApi({
 										query,
 										intent: "general", // Use general to get multiple options
 										isAutocomplete: true,
@@ -167,7 +163,7 @@ export function useAddressFinderClientTools(
 							// Validate the top result for address intent
 							withRetry(
 								() =>
-									getPlaceSuggestionsAction({
+									searchAddressApi({
 										query,
 										intent: "address",
 										maxResults: 1,
@@ -300,7 +296,7 @@ export function useAddressFinderClientTools(
 					// Wrap API call with retry logic
 					const searchResult = await withRetry(
 						() =>
-							getPlaceSuggestionsAction({
+							searchAddressApi({
 								query: query,
 								intent: intent || "general",
 								isAutocomplete: true,
@@ -989,7 +985,6 @@ export function useAddressFinderClientTools(
 		}),
 		[
 			queryClient,
-			getPlaceSuggestionsAction,
 			getSessionToken,
 			clearSessionToken,
 			log,

@@ -9,7 +9,7 @@
 - Auth: Clerk production instance aligned with the Convex auth provider
 - Billing: Polar production with webhook delivery to Convex
 
-This is the lowest-friction path because the app passes both `npm run typecheck` and `npm run build`, starts with `npm run start`, and includes a Dockerfile for generic container platforms. The Vercel preset in [`react-router.config.ts`](../react-router.config.ts) is now gated behind `VERCEL=1`.
+This is the lowest-friction path because the app passes both `npm run typecheck` and `npm run build`, starts with `npm run start`, and now uses TanStack Start's Vite integration for SSR. The current build/runtime entrypoints are [`vite.config.ts`](../vite.config.ts) with `tanstackStart()` and the production `start` script in [`package.json`](../package.json).
 
 ## Required Config
 

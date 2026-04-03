@@ -28,7 +28,7 @@ npx convex deploy     # Deploy Convex functions to production
 ## Architecture Overview
 
 ### Tech Stack
-- **Frontend**: React Router v7 with SSR enabled
+- **Frontend**: TanStack Start on Vite with TanStack Router file routing and SSR
 - **Backend**: Convex (serverless functions and real-time database)
 - **Auth**: Clerk for authentication and user management
 - **Styling**: TailwindCSS v4 with shadcn/ui component library
@@ -62,12 +62,18 @@ app/
 │   ├── conversation/   # Chat interface components
 │   └── dashboard/      # Dashboard-specific components
 ├── hooks/              # Custom React hooks
-├── routes/             # React Router route components
+├── routes/             # Page modules consumed by `src/routes/*`
 ├── services/           # Centralized service layer
 │   ├── address-search/ # Address search service (SLIP)
 │   └── hooks/          # React hook wrappers for services
 ├── stores/             # Zustand stores for UI state
 └── utils/              # Utility functions
+
+src/
+├── routes/             # TanStack Router file routes and root route
+├── router.tsx          # Router creation with generated route tree
+├── start.ts            # TanStack Start server entry + Clerk middleware
+└── routeTree.gen.ts    # Generated TanStack Router route tree
 
 convex/
 ├── address/            # Address & location services (consolidated)
@@ -243,11 +249,10 @@ FRONTEND_URL=http://localhost:5173
 
 ## Deployment
 - **Default host shape**: Standard Node SSR service, suitable for Docker-based platforms
-- **Vercel**: `@vercel/react-router` preset is enabled only when `VERCEL=1`
-- **Docker**: Dockerfile included for containerized deployment
+- **Build/runtime config**: `vite.config.ts` uses `tanstackStart()` and `package.json` starts production with `pnpx srvx --prod -s ../client dist/server/server.js`
 - **Environment**: Production builds require all environment variables set
 - **Canonical production origin**: `https://reop.com.au`
-- **Webhook target**: Polar posts to Convex `/payments/webhook`, not a React Router route
+- **Webhook target**: Polar posts to Convex `/payments/webhook`, not an app route
 - **Runbook**: See `docs/reop-production-launch.md` for the REOP launch checklist
 
 ## Active Projects

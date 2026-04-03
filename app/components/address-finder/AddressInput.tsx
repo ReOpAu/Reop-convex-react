@@ -16,6 +16,7 @@ interface AddressInputProps {
 	"aria-haspopup"?: "listbox" | "menu" | "tree" | "grid" | "dialog";
 	"aria-autocomplete"?: "none" | "inline" | "list" | "both";
 	"aria-activedescendant"?: string;
+	"aria-controls"?: string;
 	role?: string;
 }
 
@@ -37,6 +38,7 @@ export const AddressInput = React.forwardRef<
 			"aria-haspopup": ariaHaspopup,
 			"aria-autocomplete": ariaAutocomplete,
 			"aria-activedescendant": ariaActivedescendant,
+			"aria-controls": ariaControls,
 			role,
 		},
 		ref,
@@ -61,6 +63,7 @@ export const AddressInput = React.forwardRef<
 					aria-haspopup={ariaHaspopup}
 					aria-autocomplete={ariaAutocomplete}
 					aria-activedescendant={ariaActivedescendant}
+					aria-controls={ariaControls}
 					role={role}
 				/>
 				{isLoading && (
