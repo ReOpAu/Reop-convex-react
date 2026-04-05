@@ -7,12 +7,29 @@ import { decodeAudioFromWs } from "./audioEncoder";
 
 const SAMPLE_RATE = 44100;
 
+interface AudioPlayerOptions {
+	onPlaybackStateChange?: (isPlaying: boolean) => void;
+}
+
 export class AudioPlayer {
 	private audioContext: AudioContext | null = null;
 	private queue: Float32Array[] = [];
 	private isPlaying = false;
 	private nextStartTime = 0;
 	private currentSource: AudioBufferSourceNode | null = null;
+	private readonly onPlaybackStateChange?: (isPlaying: boolean) => void;
+
+	constructor(options: AudioPlayerOptions = {}) {
+		this.onPlaybackStateChange = options.onPlaybackStateChange;
+	}
+
+	private setPlaybackState(nextIsPlaying: boolean): void {
+		if (this.isPlaying === nextIsPlaying) {
+			return;
+		}
+		this.isPlaying = nextIsPlaying;
+		this.onPlaybackStateChange?.(nextIsPlaying);
+	}
 
 	/**
 	 * Initialize or resume the AudioContext.
@@ -44,11 +61,11 @@ export class AudioPlayer {
 	 */
 	private playNext(): void {
 		if (!this.audioContext || this.queue.length === 0) {
-			this.isPlaying = false;
+			this.setPlaybackState(false);
 			return;
 		}
 
-		this.isPlaying = true;
+		this.setPlaybackState(true);
 		const float32 = this.queue.shift()!;
 
 		const buffer = this.audioContext.createBuffer(
@@ -94,7 +111,7 @@ export class AudioPlayer {
 			this.currentSource.disconnect();
 			this.currentSource = null;
 		}
-		this.isPlaying = false;
+		this.setPlaybackState(false);
 	}
 
 	/**

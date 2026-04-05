@@ -47,6 +47,7 @@ function AddressFinderCartesia() {
 						isValidating={handlers.isValidating}
 						validationError={handlers.validationError}
 						pendingRuralConfirmation={handlers.pendingRuralConfirmation}
+						conversationStatus={handlers.conversationStatus}
 					/>
 				)}
 			</CartesiaAddressFinderBrain>

@@ -15,6 +15,8 @@ import {
 
 const MIC_SAMPLE_RATE = 44100;
 const BUFFER_SIZE = 4096;
+const MIC_ACTIVITY_THRESHOLD = 0.03;
+const MIC_ACTIVITY_HOLD_MS = 180;
 
 interface UseCartesiaAudioManagerOptions {
 	sendMediaInput: (base64Data: string) => void;
@@ -47,8 +49,53 @@ export function useCartesiaAudioManager({
 	);
 	const playerRef = useRef<AudioPlayer | null>(null);
 	const playerReadyRef = useRef<Promise<AudioPlayer> | null>(null);
+	const voiceInactiveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
+
+	const clearVoiceInactiveTimeout = useCallback(() => {
+		if (voiceInactiveTimeoutRef.current) {
+			clearTimeout(voiceInactiveTimeoutRef.current);
+			voiceInactiveTimeoutRef.current = null;
+		}
+	}, []);
+
+	const setVoiceActive = useCallback((isActive: boolean) => {
+		if (useUIStore.getState().isVoiceActive !== isActive) {
+			useUIStore.getState().setIsVoiceActive(isActive);
+		}
+	}, []);
+
+	const updateVoiceActivity = useCallback(
+		(samples: Float32Array) => {
+			let sumSquares = 0;
+			for (let index = 0; index < samples.length; index += 1) {
+				const sample = samples[index] ?? 0;
+				sumSquares += sample * sample;
+			}
+
+			const rms = Math.sqrt(sumSquares / Math.max(samples.length, 1));
+			if (rms >= MIC_ACTIVITY_THRESHOLD) {
+				clearVoiceInactiveTimeout();
+				setVoiceActive(true);
+				return;
+			}
+
+			clearVoiceInactiveTimeout();
+			if (!useUIStore.getState().isVoiceActive) {
+				return;
+			}
+
+			voiceInactiveTimeoutRef.current = setTimeout(() => {
+				setVoiceActive(false);
+				voiceInactiveTimeoutRef.current = null;
+			}, MIC_ACTIVITY_HOLD_MS);
+		},
+		[clearVoiceInactiveTimeout, setVoiceActive],
+	);
 
 	const cleanupCaptureResources = useCallback(() => {
+		clearVoiceInactiveTimeout();
 		for (const track of streamRef.current?.getTracks() ?? []) {
 			track.stop();
 		}
@@ -75,11 +122,15 @@ export function useCartesiaAudioManager({
 			audioContextRef.current.close().catch(() => {});
 			audioContextRef.current = null;
 		}
-	}, []);
+	}, [clearVoiceInactiveTimeout]);
 
 	const ensurePlayerReady = useCallback(async (): Promise<AudioPlayer> => {
 		if (!playerRef.current) {
-			playerRef.current = new AudioPlayer();
+			playerRef.current = new AudioPlayer({
+				onPlaybackStateChange: (isPlaying) => {
+					useUIStore.getState().setIsAgentSpeaking(isPlaying);
+				},
+			});
 		}
 
 		if (!playerReadyRef.current) {
@@ -112,74 +163,84 @@ export function useCartesiaAudioManager({
 			const audioContext = new AudioContext({
 				sampleRate: MIC_SAMPLE_RATE,
 			});
-				audioContextRef.current = audioContext;
+			audioContextRef.current = audioContext;
 
-				const source = audioContext.createMediaStreamSource(stream);
-				sourceRef.current = source;
+			const source = audioContext.createMediaStreamSource(stream);
+			sourceRef.current = source;
 
-				if (
-					audioContext.audioWorklet &&
-					typeof AudioWorkletNode !== "undefined"
-				) {
-					await loadCartesiaMicCaptureWorklet(audioContext.audioWorklet);
-					const processor = new AudioWorkletNode(
-						audioContext,
-						CARTESIA_MIC_CAPTURE_PROCESSOR_NAME,
-						{
-							numberOfInputs: 1,
-							numberOfOutputs: 1,
-							channelCount: 1,
-							outputChannelCount: [1],
-						},
-					);
-					processor.port.onmessage = (event: MessageEvent<Float32Array>) => {
-						if (!(event.data instanceof Float32Array)) {
-							return;
-						}
-						sendMediaInput(encodeAudioForWs(event.data));
-					};
-					processor.onprocessorerror = (event) => {
-						console.error("[CartesiaAudio] AudioWorklet processor error:", event);
-					};
-					processorRef.current = processor;
-					source.connect(processor);
-					processor.connect(audioContext.destination);
-				} else {
-					const processor = audioContext.createScriptProcessor(
-						BUFFER_SIZE,
-						1,
-						1,
-					);
-					processor.onaudioprocess = (event) => {
-						const inputData = event.inputBuffer.getChannelData(0);
-						sendMediaInput(encodeAudioForWs(inputData));
-					};
-					processorRef.current = processor;
-					source.connect(processor);
-					processor.connect(audioContext.destination);
-				}
+			if (
+				audioContext.audioWorklet &&
+				typeof AudioWorkletNode !== "undefined"
+			) {
+				await loadCartesiaMicCaptureWorklet(audioContext.audioWorklet);
+				const processor = new AudioWorkletNode(
+					audioContext,
+					CARTESIA_MIC_CAPTURE_PROCESSOR_NAME,
+					{
+						numberOfInputs: 1,
+						numberOfOutputs: 1,
+						channelCount: 1,
+						outputChannelCount: [1],
+					},
+				);
+				processor.port.onmessage = (event: MessageEvent<Float32Array>) => {
+					if (!(event.data instanceof Float32Array)) {
+						return;
+					}
+					updateVoiceActivity(event.data);
+					sendMediaInput(encodeAudioForWs(event.data));
+				};
+				processor.onprocessorerror = (event) => {
+					console.error("[CartesiaAudio] AudioWorklet processor error:", event);
+				};
+				processorRef.current = processor;
+				source.connect(processor);
+				processor.connect(audioContext.destination);
+			} else {
+				const processor = audioContext.createScriptProcessor(
+					BUFFER_SIZE,
+					1,
+					1,
+				);
+				processor.onaudioprocess = (event) => {
+					const inputData = event.inputBuffer.getChannelData(0);
+					updateVoiceActivity(inputData);
+					sendMediaInput(encodeAudioForWs(inputData));
+				};
+				processorRef.current = processor;
+				source.connect(processor);
+				processor.connect(audioContext.destination);
+			}
 
-				await audioContext.resume().catch(() => {});
+			await audioContext.resume().catch(() => {});
 
-				await ensurePlayerReady();
+			await ensurePlayerReady();
 
-				useUIStore.getState().setIsRecording(true);
-				useUIStore.getState().setIsVoiceActive(true);
-			} catch (err) {
+			useUIStore.getState().setIsRecording(true);
+			useUIStore.getState().setIsVoiceActive(false);
+			useUIStore.getState().setIsAgentSpeaking(false);
+		} catch (err) {
 				console.error("[CartesiaAudio] Failed to start capture:", err);
 				cleanupCaptureResources();
 				useUIStore.getState().setIsRecording(false);
 				useUIStore.getState().setIsVoiceActive(false);
+				useUIStore.getState().setIsAgentSpeaking(false);
 				throw err instanceof Error
 					? err
 					: new Error("Failed to start Cartesia audio capture");
 			}
-		}, [cleanupCaptureResources, ensurePlayerReady, sendMediaInput]);
+		}, [
+			cleanupCaptureResources,
+			ensurePlayerReady,
+			sendMediaInput,
+			updateVoiceActivity,
+		]);
 
 	const stopCapture = useCallback(() => {
 		cleanupCaptureResources();
 		useUIStore.getState().setIsRecording(false);
 		useUIStore.getState().setIsVoiceActive(false);
+		useUIStore.getState().setIsAgentSpeaking(false);
 	}, [cleanupCaptureResources]);
 
 	const playAudioChunk = useCallback((base64Data: string) => {
@@ -203,6 +264,7 @@ export function useCartesiaAudioManager({
 			playerRef.current = null;
 		}
 		playerReadyRef.current = null;
+		useUIStore.getState().setIsAgentSpeaking(false);
 	}, [stopCapture]);
 
 	useEffect(() => {

@@ -58,6 +58,7 @@ export interface CartesiaAddressFinderBrainHandlers {
 		currentIntent: LocationIntent;
 		isRecording: boolean;
 		isVoiceActive: boolean;
+		isAgentSpeaking: boolean;
 		agentRequestedManual: boolean;
 		history: HistoryItem[];
 		searchHistory: SearchHistoryEntry[];
@@ -176,6 +177,7 @@ export function CartesiaAddressFinderBrain({
 	const {
 		isRecording,
 		isVoiceActive,
+		isAgentSpeaking,
 		agentRequestedManual,
 		showingOptionsAfterConfirmation,
 		setAgentRequestedManual,
@@ -560,6 +562,7 @@ export function CartesiaAddressFinderBrain({
 			currentIntent,
 			isRecording,
 			isVoiceActive,
+			isAgentSpeaking,
 			agentRequestedManual,
 			history,
 			searchHistory,

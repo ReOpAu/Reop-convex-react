@@ -17,7 +17,6 @@ import {
 import { PreviousConfirmedSelectionsPanel } from "~/components/address-finder/PreviousConfirmedSelectionsPanel";
 import { PreviousSearchesPanel } from "~/components/address-finder/PreviousSearchesPanel";
 import SuburbBoundaryMap from "~/components/address-finder/SuburbBoundaryMap";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
@@ -52,6 +51,7 @@ interface AddressFinderUIProps {
 		currentIntent: LocationIntent;
 		isRecording: boolean;
 		isVoiceActive: boolean;
+		isAgentSpeaking: boolean;
 		agentRequestedManual: boolean;
 		history: HistoryItem[];
 		searchHistory: SearchHistoryEntry[];
@@ -73,6 +73,7 @@ interface AddressFinderUIProps {
 	isValidating: boolean;
 	validationError: string | null;
 	pendingRuralConfirmation: RuralConfirmationState["pendingRuralConfirmation"];
+	conversationStatus: string;
 }
 
 export function AddressFinderUI({
@@ -97,6 +98,7 @@ export function AddressFinderUI({
 	isValidating,
 	validationError,
 	pendingRuralConfirmation,
+	conversationStatus,
 }: AddressFinderUIProps) {
 	// Destructure state from props (no direct store imports)
 	const {
@@ -107,6 +109,7 @@ export function AddressFinderUI({
 		currentIntent,
 		isRecording,
 		isVoiceActive,
+		isAgentSpeaking,
 		agentRequestedManual,
 		history,
 		searchHistory,
@@ -173,15 +176,6 @@ export function AddressFinderUI({
 							<span className="text-sm text-muted-foreground">
 								Searching for: {currentIntent}
 							</span>
-						)}
-						{isRecording && (
-							<Badge
-								variant="secondary"
-								className="animate-pulse bg-red-50 text-red-600 border-red-100"
-							>
-								Recording active
-								{agentRequestedManual && " + Manual"}
-							</Badge>
 						)}
 					</div>
 					{(searchHistory.length > 0 || addressSelections.length > 0) && (
@@ -253,8 +247,11 @@ export function AddressFinderUI({
 				{/* Main input area */}
 				<div className="space-y-6">
 					<VoiceInputController
+						conversationStatus={conversationStatus}
 						isRecording={isRecording}
 						isVoiceActive={isVoiceActive}
+						isAgentSpeaking={isAgentSpeaking}
+						agentRequestedManual={agentRequestedManual}
 						startRecording={handleStartRecording}
 						stopRecording={handleStopRecording}
 					/>

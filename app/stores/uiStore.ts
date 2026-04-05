@@ -5,6 +5,7 @@ import { devtools } from "zustand/middleware";
 interface UIState {
 	isRecording: boolean;
 	isVoiceActive: boolean;
+	isAgentSpeaking: boolean;
 	isLoggingEnabled: boolean;
 	agentRequestedManual: boolean;
 	selectionAcknowledged: boolean;
@@ -19,6 +20,7 @@ interface UIState {
 
 	setIsRecording: (isRecording: boolean) => void;
 	setIsVoiceActive: (isVoiceActive: boolean) => void;
+	setIsAgentSpeaking: (isAgentSpeaking: boolean) => void;
 	setIsLoggingEnabled: (enabled: boolean) => void;
 	setAgentRequestedManual: (requested: boolean) => void;
 	setSelectionAcknowledged: (ack: boolean) => void;
@@ -32,6 +34,7 @@ interface UIState {
 const initialUiState = {
 	isRecording: false,
 	isVoiceActive: false,
+	isAgentSpeaking: false,
 	isLoggingEnabled: true,
 	agentRequestedManual: false,
 	selectionAcknowledged: false,
@@ -49,6 +52,8 @@ export const useUIStore = create<UIState>()(
 			...initialUiState,
 			setIsRecording: (recording: boolean) => set({ isRecording: recording }),
 			setIsVoiceActive: (active: boolean) => set({ isVoiceActive: active }),
+			setIsAgentSpeaking: (speaking: boolean) =>
+				set({ isAgentSpeaking: speaking }),
 			setIsLoggingEnabled: (enabled: boolean) =>
 				set({ isLoggingEnabled: enabled }),
 			setAgentRequestedManual: (requested: boolean) =>

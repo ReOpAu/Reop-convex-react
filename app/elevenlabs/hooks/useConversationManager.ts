@@ -2,18 +2,18 @@ import { useConversation } from "@elevenlabs/react";
 import { useCallback, useRef } from "react";
 import { useHistoryStore } from "~/stores/historyStore";
 import { useUIStore } from "~/stores/uiStore";
-import { ELEVENLABS_RETRY_CONFIG, withRetry } from "~/utils/retryMechanism";
 
 export function useConversationManager(clientTools: Record<string, any>) {
 	// More robust state selection to avoid lifecycle issues
-	const setIsRecording = useUIStore((state) => state.setIsRecording);
 	const isLoggingEnabled = useUIStore((state) => state.isLoggingEnabled);
-	const vadThresholds = useUIStore((state) => state.vadThresholds);
 	const addHistory = useHistoryStore((state) => state.addHistory);
 
 	// Track connection attempts for retry logic
 	const connectionAttempts = useRef(0);
 	const maxConnectionAttempts = 3;
+	const agentSpeakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
 
 	// Logging utility - STABLE: No dependencies to prevent infinite loops
 	const log = useCallback(
@@ -33,6 +33,34 @@ export function useConversationManager(clientTools: Record<string, any>) {
 		}
 	}, []);
 
+	const clearAgentSpeakingTimeout = useCallback(() => {
+		if (agentSpeakingTimeoutRef.current) {
+			clearTimeout(agentSpeakingTimeoutRef.current);
+			agentSpeakingTimeoutRef.current = null;
+		}
+	}, []);
+
+	const setAgentSpeaking = useCallback(
+		(isSpeaking: boolean) => {
+			clearAgentSpeakingTimeout();
+			const ui = useUIStore.getState();
+			if (ui.isAgentSpeaking !== isSpeaking) {
+				ui.setIsAgentSpeaking(isSpeaking);
+			}
+
+			if (isSpeaking) {
+				agentSpeakingTimeoutRef.current = setTimeout(() => {
+					const latestUi = useUIStore.getState();
+					if (latestUi.isAgentSpeaking) {
+						latestUi.setIsAgentSpeaking(false);
+					}
+					agentSpeakingTimeoutRef.current = null;
+				}, 220);
+			}
+		},
+		[clearAgentSpeakingTimeout],
+	);
+
 	// Conversation setup with enhanced clientTools and complete event handling
 	const conversation = useConversation({
 		agentId: import.meta.env.VITE_ELEVENLABS_ADDRESS_AGENT_ID,
@@ -48,6 +76,8 @@ export function useConversationManager(clientTools: Record<string, any>) {
 			// Using .getState() is safe here as it's outside the React render cycle
 			useUIStore.getState().setIsRecording(false);
 			setVoiceActivity(false);
+			useUIStore.getState().setIsAgentSpeaking(false);
+			clearAgentSpeakingTimeout();
 		},
 		onMessage: (message) => {
 			if ((message.role ?? message.source) === "user") {
@@ -74,6 +104,8 @@ export function useConversationManager(clientTools: Record<string, any>) {
 		onError: (message, context) => {
 			log("❌ Conversation error:", message, context);
 			addHistory({ type: "system", text: `Error: ${message}` });
+			useUIStore.getState().setIsAgentSpeaking(false);
+			clearAgentSpeakingTimeout();
 
 			// Handle connection errors with retry logic
 			const errorMessage = message || "";
@@ -116,7 +148,7 @@ export function useConversationManager(clientTools: Record<string, any>) {
 				audioLength: base64Audio?.length,
 				format: "base64",
 			});
-			// Audio playback is typically handled by SDK automatically
+			setAgentSpeaking(Boolean(base64Audio));
 		},
 		onUnhandledClientToolCall: (toolCall) => {
 			log("🔧 Client tool call event received:", {

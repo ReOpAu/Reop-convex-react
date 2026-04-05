@@ -60,6 +60,7 @@ export interface AddressFinderBrainHandlers {
 		currentIntent: LocationIntent;
 		isRecording: boolean;
 		isVoiceActive: boolean;
+		isAgentSpeaking: boolean;
 		agentRequestedManual: boolean;
 		history: HistoryItem[];
 		searchHistory: SearchHistoryEntry[];
@@ -105,6 +106,7 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 	const {
 		isRecording,
 		isVoiceActive,
+		isAgentSpeaking,
 		agentRequestedManual,
 		showingOptionsAfterConfirmation,
 		setAgentRequestedManual,
@@ -421,6 +423,7 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 			currentIntent,
 			isRecording,
 			isVoiceActive,
+			isAgentSpeaking,
 			agentRequestedManual,
 			history,
 			searchHistory,

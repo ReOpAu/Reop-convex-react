@@ -204,7 +204,7 @@ An alternative voice-powered address finder at `/address-finder-cartesia` using 
 
 ```bash
 # 1. Install Cartesia CLI
-curl -fsSL https://line.cartesia.ai/install.sh | bash
+curl -fsSL https://cartesia.sh | sh
 cartesia auth login <your_api_key>
 
 # 2. Set agent environment variables

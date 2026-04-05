@@ -543,3 +543,33 @@ test("AudioPlayer.flush stops the current source, not just queued chunks", async
 		globalThis.AudioContext = originalAudioContext;
 	}
 });
+
+test("AudioPlayer reports playback state changes when audio starts and ends", async () => {
+	const originalAudioContext = globalThis.AudioContext;
+	globalThis.AudioContext =
+		FakeAudioContext as unknown as typeof globalThis.AudioContext;
+
+	try {
+		const playbackStates: boolean[] = [];
+		const player = new AudioPlayer({
+			onPlaybackStateChange: (isPlaying) => {
+				playbackStates.push(isPlaying);
+			},
+		});
+
+		await player.init();
+		player.enqueue(
+			Buffer.from(new Int16Array([0, 0, 0, 0]).buffer).toString("base64"),
+		);
+
+		assert.deepEqual(playbackStates, [true]);
+
+		const source = FakeAudioContext.lastSource;
+		assert.ok(source);
+		source.onended?.();
+
+		assert.deepEqual(playbackStates, [true, false]);
+	} finally {
+		globalThis.AudioContext = originalAudioContext;
+	}
+});

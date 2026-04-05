@@ -7,7 +7,7 @@ A Python voice agent built on the [Cartesia Line SDK](https://docs.cartesia.ai/l
 ```
 Browser (/address-finder-cartesia)          Cartesia Cloud               Convex
   |                                              |                         |
-  |-- WS connect (access_token) --------------->|                         |
+  |-- WS connect (access_token + cartesia_version) ---------------------->|                         |
   |<-- ack + stream_id -------------------------|                         |
   |                                              |                         |
   |-- media_input (mic PCM base64) ------------>|                         |
@@ -39,7 +39,7 @@ With **Cartesia Line**, tools run **server-side in Python**. The browser receive
 | `tools.py` | 9 loopback tools calling Convex HTTP API + state bridge |
 | `intent_classification.py` | Parity-focused Cartesia intent classifier matching the shared TS rules |
 | `config.py` | System prompt and LLM configuration |
-| `requirements.txt` | Pinned Python dependencies (`cartesia-line==0.2.7`, `httpx==0.27.0`) |
+| `requirements.txt` | Pinned Python dependencies (`cartesia-line==0.2.6`, `httpx==0.27.0`) |
 | `cartesia.toml` | Cartesia CLI deployment configuration |
 | `.env.example` | Environment variable template |
 
@@ -123,7 +123,7 @@ cartesia env set --agent-id=<AGENT_ID> \
 
 - Python 3.10+
 - [uv](https://github.com/astral-sh/uv) (recommended) or pip
-- [Cartesia CLI](https://docs.cartesia.ai/line/cli): `curl -fsSL https://line.cartesia.ai/install.sh | bash`
+- [Cartesia CLI](https://docs.cartesia.ai/line/cli): `curl -fsSL https://cartesia.sh | sh`
 
 ### Run Locally
 
@@ -204,7 +204,7 @@ convex/
 ### Browser Authentication
 
 1. Browser calls Convex action `cartesia.getAccessToken` which mints a short-lived JWT via `POST https://api.cartesia.ai/access-token` using the server-side `CARTESIA_API_KEY`.
-2. Browser connects to `wss://api.cartesia.ai/agents/stream/{agent_id}?access_token={token}`.
+2. Browser connects to `wss://api.cartesia.ai/agents/stream/{agent_id}?cartesia_version={pinned_version}&access_token={token}`.
 3. Browser capture starts only after Cartesia returns an `ack` with a valid `stream_id`.
 
 ### Required Browser-Side Env Vars
