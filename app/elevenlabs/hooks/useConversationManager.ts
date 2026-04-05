@@ -4,6 +4,7 @@ import { useHistoryStore } from "~/stores/historyStore";
 import { useUIStore } from "~/stores/uiStore";
 
 export function useConversationManager(clientTools: Record<string, any>) {
+	const AGENT_SPEAKING_DECAY_MS = 320;
 	// More robust state selection to avoid lifecycle issues
 	const isLoggingEnabled = useUIStore((state) => state.isLoggingEnabled);
 	const addHistory = useHistoryStore((state) => state.addHistory);
@@ -55,7 +56,7 @@ export function useConversationManager(clientTools: Record<string, any>) {
 						latestUi.setIsAgentSpeaking(false);
 					}
 					agentSpeakingTimeoutRef.current = null;
-				}, 220);
+				}, AGENT_SPEAKING_DECAY_MS);
 			}
 		},
 		[clearAgentSpeakingTimeout],

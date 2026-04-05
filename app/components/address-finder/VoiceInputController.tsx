@@ -122,49 +122,65 @@ const VoiceInputController: React.FC<VoiceInputControllerProps> = ({
 		if (hasError) {
 			return {
 				kicker: "Session issue",
-				title: "The voice channel did not start cleanly.",
-				body: "Try starting again. Manual search remains available below.",
+				title: "We could not open the voice session.",
+				body: "Try again, or use the manual search below while the connection settles.",
 			};
 		}
 
 		if (isConnecting) {
 			return {
-				kicker: "Dialing in",
-				title: "Connecting to the live agent.",
-				body: "We are minting auth, opening the stream, and waiting for the session ack.",
+				kicker: "Connecting",
+				title: "Opening the live voice channel.",
+				body: "This usually takes a moment while the session comes online.",
 			};
 		}
 
 		if (isAgentSpeaking) {
 			return {
 				kicker: "Agent speaking",
-				title: "Cartesia is responding now.",
-				body: "You can watch the address UI update while the reply is playing.",
+				title: "The agent is responding now.",
+				body: "Watch the address results update while the reply plays back.",
+			};
+		}
+
+		if (agentRequestedManual && isRecording) {
+			return {
+				kicker: "Hybrid mode",
+				title: "Voice is live and typing is open.",
+				body: "Use whichever is faster. The session will keep listening while you type.",
 			};
 		}
 
 		if (isVoiceActive) {
 			return {
-				kicker: "You are live",
-				title: "We can hear you clearly.",
-				body: "Keep speaking naturally. The search should update as the agent works.",
+				kicker: "Live input",
+				title: "We are hearing you clearly.",
+				body: "Keep speaking naturally and let the search keep up with you.",
 			};
 		}
 
 		if (isRecording && isConnected) {
 			return {
-				kicker: "Open channel",
-				title: "The mic is live and waiting for you.",
-				body: "Start speaking, or type below if you want to steer manually.",
+				kicker: "Ready",
+				title: "The session is live and ready for you.",
+				body: "Speak whenever you are ready. Manual typing stays available below.",
 			};
 		}
 
 		return {
 			kicker: "Ready",
-			title: "Start a live voice session.",
-			body: "Tap the orb to connect, then speak your address naturally.",
+			title: "Start a live voice search.",
+			body: "Tap the orb, wait for the session to open, then say the address naturally.",
 		};
-	}, [hasError, isAgentSpeaking, isConnected, isConnecting, isRecording, isVoiceActive]);
+	}, [
+		agentRequestedManual,
+		hasError,
+		isAgentSpeaking,
+		isConnected,
+		isConnecting,
+		isRecording,
+		isVoiceActive,
+	]);
 
 	const buttonTone = hasError
 		? "from-rose-500 via-red-500 to-orange-500"
@@ -279,11 +295,13 @@ const VoiceInputController: React.FC<VoiceInputControllerProps> = ({
 							<div className="space-y-2">
 								<p className="text-sm font-medium text-stone-900">
 									{isConnecting
-										? "Establishing session"
+										? "Connecting"
 										: isAgentSpeaking
-											? "Agent response in progress"
+											? "Agent speaking"
+											: agentRequestedManual && isRecording
+												? "Voice and typing active"
 											: isVoiceActive
-												? "Live speech detected"
+												? "Speech detected"
 												: isRecording
 													? "Mic open"
 													: "Tap to speak"}
@@ -291,6 +309,8 @@ const VoiceInputController: React.FC<VoiceInputControllerProps> = ({
 								<p className="text-xs uppercase tracking-[0.24em] text-stone-500">
 									{isIdle
 										? "Standby"
+										: agentRequestedManual && isRecording
+											? "Hybrid"
 										: isRecording && !isVoiceActive && !isAgentSpeaking
 											? "Listening"
 											: isAgentSpeaking
@@ -308,6 +328,8 @@ const VoiceInputController: React.FC<VoiceInputControllerProps> = ({
 							value={
 								isVoiceActive
 									? "Speaking detected"
+									: agentRequestedManual && isRecording
+										? "Voice open while typing"
 									: isRecording
 										? "Mic armed"
 										: "Waiting to start"
@@ -324,6 +346,8 @@ const VoiceInputController: React.FC<VoiceInputControllerProps> = ({
 									<p className="mt-1 text-sm font-medium text-stone-900">
 										{isVoiceActive
 											? "You are actively talking"
+											: agentRequestedManual && isRecording
+												? "Typing is open during the live session"
 											: isRecording
 												? "Listening for speech"
 												: "Voice input is idle"}

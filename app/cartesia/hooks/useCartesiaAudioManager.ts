@@ -15,8 +15,9 @@ import {
 
 const MIC_SAMPLE_RATE = 44100;
 const BUFFER_SIZE = 4096;
-const MIC_ACTIVITY_THRESHOLD = 0.03;
-const MIC_ACTIVITY_HOLD_MS = 180;
+const MIC_ACTIVITY_ACTIVATION_THRESHOLD = 0.024;
+const MIC_ACTIVITY_DEACTIVATION_THRESHOLD = 0.015;
+const MIC_ACTIVITY_HOLD_MS = 320;
 
 interface UseCartesiaAudioManagerOptions {
 	sendMediaInput: (base64Data: string) => void;
@@ -75,14 +76,20 @@ export function useCartesiaAudioManager({
 			}
 
 			const rms = Math.sqrt(sumSquares / Math.max(samples.length, 1));
-			if (rms >= MIC_ACTIVITY_THRESHOLD) {
+			const isCurrentlyActive = useUIStore.getState().isVoiceActive;
+
+			if (!isCurrentlyActive && rms >= MIC_ACTIVITY_ACTIVATION_THRESHOLD) {
 				clearVoiceInactiveTimeout();
 				setVoiceActive(true);
 				return;
 			}
 
 			clearVoiceInactiveTimeout();
-			if (!useUIStore.getState().isVoiceActive) {
+			if (!isCurrentlyActive) {
+				return;
+			}
+
+			if (rms >= MIC_ACTIVITY_DEACTIVATION_THRESHOLD) {
 				return;
 			}
 
@@ -220,21 +227,21 @@ export function useCartesiaAudioManager({
 			useUIStore.getState().setIsVoiceActive(false);
 			useUIStore.getState().setIsAgentSpeaking(false);
 		} catch (err) {
-				console.error("[CartesiaAudio] Failed to start capture:", err);
-				cleanupCaptureResources();
-				useUIStore.getState().setIsRecording(false);
-				useUIStore.getState().setIsVoiceActive(false);
-				useUIStore.getState().setIsAgentSpeaking(false);
-				throw err instanceof Error
-					? err
-					: new Error("Failed to start Cartesia audio capture");
-			}
-		}, [
-			cleanupCaptureResources,
-			ensurePlayerReady,
-			sendMediaInput,
-			updateVoiceActivity,
-		]);
+			console.error("[CartesiaAudio] Failed to start capture:", err);
+			cleanupCaptureResources();
+			useUIStore.getState().setIsRecording(false);
+			useUIStore.getState().setIsVoiceActive(false);
+			useUIStore.getState().setIsAgentSpeaking(false);
+			throw err instanceof Error
+				? err
+				: new Error("Failed to start Cartesia audio capture");
+		}
+	}, [
+		cleanupCaptureResources,
+		ensurePlayerReady,
+		sendMediaInput,
+		updateVoiceActivity,
+	]);
 
 	const stopCapture = useCallback(() => {
 		cleanupCaptureResources();
