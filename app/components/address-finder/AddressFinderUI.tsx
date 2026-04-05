@@ -31,8 +31,8 @@ import type { ManualAutocompleteState } from "./ManualSearchForm";
 interface AddressFinderUIProps {
 	// Handlers from the brain component
 	handleSelectResult: (result: Suggestion) => void;
-	handleStartRecording: () => void;
-	handleStopRecording: () => void;
+	handleStartRecording: () => void | Promise<void>;
+	handleStopRecording: () => void | Promise<void>;
 	handleClear: (source: "user" | "agent") => void;
 	handleAcceptRuralAddress: () => void;
 	handleRecallPreviousSearch: (entry: SearchHistoryEntry) => void;

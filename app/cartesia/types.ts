@@ -70,6 +70,7 @@ export interface SuggestionsUpdate {
 export interface SelectionUpdate {
 	type: "selection";
 	suggestion: Suggestion;
+	query?: string;
 }
 
 export interface ShowOptionsAgainUpdate {

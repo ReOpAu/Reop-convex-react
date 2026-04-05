@@ -12,12 +12,10 @@ import {
 	useAddressAutoSelection,
 } from "~/hooks/useAddressAutoSelection";
 import { useAddressFinderActions } from "~/hooks/useAddressFinderActions";
+import { useAddressRecall } from "~/hooks/useAddressRecall";
 import { useAddressSession } from "~/hooks/useAddressSession";
 import { useVelocityIntentClassification } from "~/hooks/useVelocityIntentClassification";
-import {
-	getPlaceDetailsApi,
-	searchAddressApi,
-} from "~/services/address-api.client";
+import { getPlaceDetailsApi } from "~/services/address-api.client";
 import { useAddressSelectionStore } from "~/stores/addressSelectionStore";
 import type { AddressSelectionEntry } from "~/stores/addressSelectionStore";
 import { useApiStore } from "~/stores/apiStore";
@@ -25,13 +23,9 @@ import { useHistoryStore } from "~/stores/historyStore";
 import { useIntentStore } from "~/stores/intentStore";
 import { useSearchHistoryStore } from "~/stores/searchHistoryStore";
 import type { SearchHistoryEntry } from "~/stores/searchHistoryStore";
-import type {
-	HistoryItem,
-	LocationIntent,
-	Mode,
-	Suggestion,
-} from "~/stores/types";
+import type { HistoryItem, LocationIntent, Suggestion } from "~/stores/types";
 import { useUIStore } from "~/stores/uiStore";
+import type { ManualAutocompleteState } from "./ManualSearchForm";
 
 // Constants
 const DEBOUNCE_DELAY = 300;
@@ -50,6 +44,9 @@ export interface CartesiaAddressFinderBrainHandlers {
 	handleRecallPreviousSearch: (entry: SearchHistoryEntry) => void;
 	handleRecallConfirmedSelection: (entry: AddressSelectionEntry) => void;
 	handleManualTyping: (query: string) => void;
+	handleManualAutocompleteStateChange: (
+		state: ManualAutocompleteState,
+	) => void;
 	handleHideOptions: () => void;
 
 	// State from stores
@@ -91,8 +88,8 @@ export interface CartesiaAddressFinderBrainHandlers {
 }
 
 /**
- * No-op syncToAgent — Cartesia agent manages its own state server-side,
- * so we don't need to push state via window.setVariable like ElevenLabs.
+ * Cartesia agent state is bridged server-side, so browser-side manual/recall
+ * flows do not need ElevenLabs variable sync.
  */
 const noopSyncToAgent = () => {};
 
@@ -110,8 +107,15 @@ export function CartesiaAddressFinderBrain({
 	const [cartesiaSessionId, setCartesiaSessionId] = useState<string | null>(
 		null,
 	);
+	const {
+		getSessionToken: getCartesiaOwnerToken,
+		clearSessionToken: clearCartesiaOwnerToken,
+		getCurrentSessionToken: getCurrentCartesiaOwnerToken,
+	} = useAddressSession();
+	const { getSessionToken, clearSessionToken, getCurrentSessionToken } =
+		useAddressSession();
 
-	// Token minting: prefer Convex action, fall back to env var for local dev
+	// Token minting is handled server-side through Convex.
 	const getAccessTokenAction = useAction(
 		api.cartesia.getAccessToken.getAccessToken,
 	);
@@ -130,16 +134,22 @@ export function CartesiaAddressFinderBrain({
 		try {
 			const result = await getAccessTokenAction({
 				sessionId: getOrCreateCartesiaSessionId(),
+				anonymousOwnerToken: getCartesiaOwnerToken(),
 			});
 			if (result.success) {
 				return result.token;
 			}
 			console.warn("[Cartesia] Token mint failed:", result.error);
+			throw new Error(result.error);
 		} catch (err) {
 			console.warn("[Cartesia] Token mint error:", err);
+			throw err instanceof Error ? err : new Error(String(err));
 		}
-		return null;
-	}, [getAccessTokenAction, getOrCreateCartesiaSessionId]);
+	}, [
+		getAccessTokenAction,
+		getCartesiaOwnerToken,
+		getOrCreateCartesiaSessionId,
+	]);
 
 	// --- Cartesia hooks ---
 	const {
@@ -155,14 +165,12 @@ export function CartesiaAddressFinderBrain({
 		onClear: () => flushAudio(),
 	});
 
-	// State bridge: subscribe to Convex for updates from the Python agent
-	useCartesiaEventHandler({
-		sessionId: cartesiaSessionId ?? "",
-		enabled: cartesiaStatus === "connected",
-	});
-
-	const { startCapture, stopCapture, playAudioChunk, flushAudio } =
-		useCartesiaAudioManager({ sendMediaInput });
+	const {
+		startCapture,
+		playAudioChunk,
+		flushAudio,
+		destroyAudio,
+	} = useCartesiaAudioManager({ sendMediaInput });
 
 	// --- State from stores (identical to ElevenLabs Brain) ---
 	const {
@@ -200,99 +208,14 @@ export function CartesiaAddressFinderBrain({
 	const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
 
 	// Custom hooks for extracted logic
-	const { getSessionToken, clearSessionToken, getCurrentSessionToken } =
-		useAddressSession();
-
-	// --- Address Recall (inline, no ElevenLabs dependency) ---
-	const [isRecallMode, setIsRecallMode] = useState(false);
-	const [preserveIntent, setPreserveIntent] = useState<LocationIntent | null>(
-		null,
-	);
-
-	const handleRecallPreviousSearch = useCallback(
-		async (entry: SearchHistoryEntry) => {
-			setActiveSearch({ query: entry.query, source: entry.context.mode });
-			setCurrentIntent(entry.context.intent as LocationIntent);
-			setAgentLastSearchQuery(entry.query);
-			setSelectedResult(null);
-			setIsRecallMode(true);
-
-			const newResults = await searchAddressApi({
-				query: entry.query,
-				intent: entry.context.intent as
-					| "general"
-					| "suburb"
-					| "street"
-					| "address"
-					| undefined,
-				isAutocomplete: false,
-				sessionToken: undefined,
-			});
-
-			setApiResults({
-				suggestions: newResults.success ? newResults.suggestions : [],
-				isLoading: false,
-				error: newResults.success ? null : newResults.error,
-				source: entry.context.mode,
-			});
-
-			queryClient.setQueryData(
-				["addressSearch", entry.query],
-				newResults.success ? newResults.suggestions : [],
-			);
-		},
-		[
-			setActiveSearch,
-			setCurrentIntent,
-			setAgentLastSearchQuery,
-			setApiResults,
-			setSelectedResult,
-			queryClient,
-		],
-	);
-
-	const handleRecallConfirmedSelection = useCallback(
-		(entry: AddressSelectionEntry) => {
-			setActiveSearch({
-				query: entry.originalQuery,
-				source: entry.context.mode as Mode,
-			});
-			setCurrentIntent(entry.context.intent as LocationIntent);
-			setAgentLastSearchQuery(entry.originalQuery);
-			setPreserveIntent(entry.context.intent as LocationIntent);
-			setApiResults({
-				suggestions: [entry.selectedAddress],
-				isLoading: false,
-				error: null,
-				source: entry.context.mode as Mode,
-			});
-			setSelectedResult(entry.selectedAddress);
-			const existingSuggestions = queryClient.getQueryData<Suggestion[]>([
-				"addressSearch",
-				entry.originalQuery,
-			]);
-			if (!existingSuggestions || existingSuggestions.length <= 1) {
-				queryClient.setQueryData(
-					["addressSearch", entry.originalQuery],
-					[entry.selectedAddress],
-				);
-			}
-			setIsRecallMode(true);
-		},
-		[
-			setActiveSearch,
-			setCurrentIntent,
-			setAgentLastSearchQuery,
-			setApiResults,
-			setSelectedResult,
-			queryClient,
-		],
-	);
-
-	const resetRecallMode = useCallback(() => {
-		setIsRecallMode(false);
-		setPreserveIntent(null);
-	}, []);
+	const {
+		isRecallMode,
+		preserveIntent,
+		handleRecallPreviousSearch,
+		handleRecallConfirmedSelection,
+		resetRecallMode,
+		setPreserveIntent,
+	} = useAddressRecall(noopSyncToAgent);
 
 	// Logging utility
 	const log = useCallback((...args: unknown[]) => {
@@ -338,25 +261,97 @@ export function CartesiaAddressFinderBrain({
 
 	const handleSelectResult = consolidatedHandleSelectResult;
 
+	useCartesiaEventHandler({
+		sessionId: cartesiaSessionId ?? "",
+		enabled: cartesiaStatus === "connected",
+		anonymousOwnerToken: getCurrentCartesiaOwnerToken(),
+		flushAudio,
+		handleSelectResult,
+	});
+
 	// --- Recording handlers (Cartesia-specific) ---
 	const handleStartRecording = useCallback(async () => {
 		const activeSessionId = getOrCreateCartesiaSessionId();
-		await wsStartSession(activeSessionId);
-		await startCapture();
-	}, [getOrCreateCartesiaSessionId, wsStartSession, startCapture]);
+		setSelectionAcknowledged(false);
 
-	const handleStopRecording = useCallback(() => {
+		try {
+			await wsStartSession(activeSessionId);
+			await startCapture();
+		} catch (error) {
+			wsEndSession();
+			cartesiaSessionIdRef.current = null;
+			setCartesiaSessionId(null);
+			const anonymousOwnerToken =
+				getCurrentCartesiaOwnerToken() ?? undefined;
+			if (activeSessionId) {
+				void clearSessionMutation({
+					sessionId: activeSessionId,
+					anonymousOwnerToken,
+				}).catch((clearError) => {
+					console.warn("[Cartesia] Failed to clear failed session", clearError);
+				});
+			}
+			clearCartesiaOwnerToken();
+			throw error;
+		}
+	}, [
+		clearCartesiaOwnerToken,
+		clearSessionMutation,
+		getCurrentCartesiaOwnerToken,
+		getOrCreateCartesiaSessionId,
+		setSelectionAcknowledged,
+		startCapture,
+		wsEndSession,
+		wsStartSession,
+	]);
+
+	const handleStopRecording = useCallback(async () => {
 		const activeSessionId = cartesiaSessionIdRef.current;
-		stopCapture();
+		const anonymousOwnerToken = getCurrentCartesiaOwnerToken() ?? undefined;
 		wsEndSession();
+		await destroyAudio();
 		cartesiaSessionIdRef.current = null;
 		setCartesiaSessionId(null);
 		if (activeSessionId) {
-			clearSessionMutation({ sessionId: activeSessionId }).catch((error) => {
+			void clearSessionMutation({
+				sessionId: activeSessionId,
+				anonymousOwnerToken,
+			}).catch((error) => {
 				console.warn("[Cartesia] Failed to clear session", error);
 			});
 		}
-	}, [stopCapture, wsEndSession, clearSessionMutation]);
+		clearCartesiaOwnerToken();
+	}, [
+		clearCartesiaOwnerToken,
+		clearSessionMutation,
+		destroyAudio,
+		getCurrentCartesiaOwnerToken,
+		wsEndSession,
+	]);
+
+	useEffect(() => {
+		return () => {
+			const activeSessionId = cartesiaSessionIdRef.current;
+			const anonymousOwnerToken = getCurrentCartesiaOwnerToken() ?? undefined;
+			wsEndSession();
+			if (activeSessionId) {
+				void clearSessionMutation({
+					sessionId: activeSessionId,
+					anonymousOwnerToken,
+				}).catch((error) => {
+					console.warn("[Cartesia] Failed to clear session on unmount", error);
+				});
+			}
+			clearCartesiaOwnerToken();
+			cartesiaSessionIdRef.current = null;
+			setCartesiaSessionId(null);
+		};
+	}, [
+		clearCartesiaOwnerToken,
+		clearSessionMutation,
+		getCurrentCartesiaOwnerToken,
+		wsEndSession,
+	]);
 
 	// --- Query management (identical to ElevenLabs Brain) ---
 	const effectiveQueryKey =
@@ -396,6 +391,10 @@ export function CartesiaAddressFinderBrain({
 
 	// Sync React Query state to stores
 	useEffect(() => {
+		if (activeSearchSource === "manual" && !showingOptionsAfterConfirmation) {
+			return;
+		}
+
 		const suggestionsFromCache =
 			queryClient.getQueryData<Suggestion[]>([
 				"addressSearch",
@@ -482,10 +481,45 @@ export function CartesiaAddressFinderBrain({
 	const handleManualTyping = useCallback(
 		(query: string) => {
 			if (!isRecallMode && !selectedResult) {
+				setSelectionAcknowledged(false);
 				setActiveSearch({ query, source: "manual" });
 			}
 		},
-		[setActiveSearch, isRecallMode, selectedResult],
+		[isRecallMode, selectedResult, setActiveSearch, setSelectionAcknowledged],
+	);
+
+	const handleManualAutocompleteStateChange = useCallback(
+		({ query, suggestions, isLoading, error }: ManualAutocompleteState) => {
+			const {
+				activeSearchSource: currentSource,
+				searchQuery: currentSearchQuery,
+			} = useIntentStore.getState();
+
+			const isCurrentManualState =
+				currentSource === "manual" ||
+				query === currentSearchQuery ||
+				(query === "" && currentSearchQuery === "");
+
+			if (!isCurrentManualState) {
+				return;
+			}
+
+			setApiResults({
+				suggestions,
+				isLoading,
+				error,
+				source: "manual",
+			});
+		},
+		[setApiResults],
+	);
+
+	const handleClearSelection = useCallback(
+		(source: "user" | "agent") => {
+			flushAudio();
+			handleClear(source);
+		},
+		[flushAudio, handleClear],
 	);
 
 	// --- Computed state ---
@@ -510,11 +544,12 @@ export function CartesiaAddressFinderBrain({
 		handleSelectResult,
 		handleStartRecording,
 		handleStopRecording,
-		handleClear,
+		handleClear: handleClearSelection,
 		handleAcceptRuralAddress,
 		handleRecallPreviousSearch,
 		handleRecallConfirmedSelection,
 		handleManualTyping,
+		handleManualAutocompleteStateChange,
 		handleHideOptions,
 
 		state: {

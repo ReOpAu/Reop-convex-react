@@ -3,19 +3,35 @@
  *
  * Each browser call registers its own session doc. The Cartesia agent can only
  * push updates into an existing session using the shared bridge secret, while
- * reads and clears stay scoped to the authenticated browser session owner.
+ * reads and clears stay scoped to either the authenticated owner or the
+ * anonymous browser capability token created for public sessions.
  */
 
+import type { UserIdentity } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { isAdminIdentity, requireIdentity } from "../utils/auth";
 
 const SESSION_ID_PATTERN = /^[a-zA-Z0-9:_-]{8,128}$/;
+const ANONYMOUS_OWNER_TOKEN_PATTERN = /^[a-zA-Z0-9:_-]{16,256}$/;
 
 function assertValidSessionId(sessionId: string) {
 	if (!SESSION_ID_PATTERN.test(sessionId)) {
 		throw new Error("Invalid session ID");
 	}
+}
+
+function normalizeAnonymousOwnerToken(token?: string): string | null {
+	const normalized = token?.trim();
+	if (!normalized) {
+		return null;
+	}
+
+	if (!ANONYMOUS_OWNER_TOKEN_PATTERN.test(normalized)) {
+		throw new Error("Invalid anonymous owner token");
+	}
+
+	return normalized;
 }
 
 function requireBridgeToken(bridgeToken: string) {
@@ -28,13 +44,51 @@ function requireBridgeToken(bridgeToken: string) {
 	}
 }
 
+type SessionOwnerRecord = {
+	ownerTokenIdentifier: string;
+	anonymousOwnerToken?: string;
+};
+
+function sessionOwnerMatches(
+	session: SessionOwnerRecord,
+	identity: UserIdentity | null,
+	anonymousOwnerToken: string | null,
+) {
+	if (identity && isAdminIdentity(identity)) {
+		return true;
+	}
+
+	if (
+		anonymousOwnerToken &&
+		session.anonymousOwnerToken === anonymousOwnerToken
+	) {
+		return true;
+	}
+
+	return (
+		Boolean(identity) &&
+		Boolean(session.ownerTokenIdentifier) &&
+		session.ownerTokenIdentifier === identity?.tokenIdentifier
+	);
+}
+
 export const registerSession = mutation({
 	args: {
 		sessionId: v.string(),
+		anonymousOwnerToken: v.optional(v.string()),
 	},
 	handler: async (ctx, args) => {
 		assertValidSessionId(args.sessionId);
-		const identity = await requireIdentity(ctx);
+		const identity = await ctx.auth.getUserIdentity();
+		const anonymousOwnerToken = normalizeAnonymousOwnerToken(
+			args.anonymousOwnerToken,
+		);
+		if (!identity && !anonymousOwnerToken) {
+			throw new Error(
+				"Cartesia session registration requires authentication or an anonymous owner token",
+			);
+		}
+
 		const now = Date.now();
 		const existing = await ctx.db
 			.query("cartesiaSessions")
@@ -42,8 +96,8 @@ export const registerSession = mutation({
 			.unique();
 
 		if (existing) {
-			if (existing.ownerTokenIdentifier !== identity.tokenIdentifier) {
-				throw new Error("Session is already owned by another user");
+			if (!sessionOwnerMatches(existing, identity, anonymousOwnerToken)) {
+				throw new Error("Session is already owned by another caller");
 			}
 
 			await ctx.db.patch(existing._id, {
@@ -57,7 +111,8 @@ export const registerSession = mutation({
 
 		await ctx.db.insert("cartesiaSessions", {
 			sessionId: args.sessionId,
-			ownerTokenIdentifier: identity.tokenIdentifier,
+			ownerTokenIdentifier: identity?.tokenIdentifier ?? "",
+			anonymousOwnerToken: anonymousOwnerToken ?? undefined,
 			updateType: "registered",
 			data: "{}",
 			createdAt: now,
@@ -101,6 +156,7 @@ export const pushUpdate = mutation({
 export const getLatestUpdate = query({
 	args: {
 		sessionId: v.string(),
+		anonymousOwnerToken: v.optional(v.string()),
 	},
 	returns: v.union(
 		v.object({
@@ -114,7 +170,10 @@ export const getLatestUpdate = query({
 	handler: async (ctx, args) => {
 		assertValidSessionId(args.sessionId);
 		const identity = await ctx.auth.getUserIdentity();
-		if (!identity) {
+		const anonymousOwnerToken = normalizeAnonymousOwnerToken(
+			args.anonymousOwnerToken,
+		);
+		if (!identity && !anonymousOwnerToken) {
 			return null;
 		}
 
@@ -127,10 +186,7 @@ export const getLatestUpdate = query({
 			return null;
 		}
 
-		if (
-			session.ownerTokenIdentifier !== identity.tokenIdentifier &&
-			!isAdminIdentity(identity)
-		) {
+		if (!sessionOwnerMatches(session, identity, anonymousOwnerToken)) {
 			return null;
 		}
 
@@ -150,10 +206,18 @@ export const getLatestUpdate = query({
 export const clearSession = mutation({
 	args: {
 		sessionId: v.string(),
+		anonymousOwnerToken: v.optional(v.string()),
 	},
 	handler: async (ctx, args) => {
 		assertValidSessionId(args.sessionId);
-		const identity = await requireIdentity(ctx);
+		const identity = await ctx.auth.getUserIdentity();
+		const anonymousOwnerToken = normalizeAnonymousOwnerToken(
+			args.anonymousOwnerToken,
+		);
+		if (!identity && !anonymousOwnerToken) {
+			await requireIdentity(ctx);
+		}
+
 		const existing = await ctx.db
 			.query("cartesiaSessions")
 			.withIndex("by_sessionId", (q) => q.eq("sessionId", args.sessionId))
@@ -163,10 +227,7 @@ export const clearSession = mutation({
 			return;
 		}
 
-		if (
-			existing.ownerTokenIdentifier !== identity.tokenIdentifier &&
-			!isAdminIdentity(identity)
-		) {
+		if (!sessionOwnerMatches(existing, identity, anonymousOwnerToken)) {
 			throw new Error("Not authorized to clear this Cartesia session");
 		}
 

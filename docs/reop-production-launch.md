@@ -35,7 +35,6 @@ Set the production env vars for the app server and browser bundle on your host:
 - `VITE_ELEVENLABS_ADDRESS_AGENT_ID`
 - `CARTESIA_API_KEY`
 - `CARTESIA_BRIDGE_SECRET`
-- `VITE_CARTESIA_API_KEY`
 - `VITE_CARTESIA_AGENT_ID`
 
 ### Convex

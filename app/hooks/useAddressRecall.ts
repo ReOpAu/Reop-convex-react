@@ -8,9 +8,10 @@ import { useIntentStore } from "~/stores/intentStore";
 import type { SearchHistoryEntry } from "~/stores/searchHistoryStore";
 import type { LocationIntent, Mode, Suggestion } from "~/stores/types";
 
-export function useAddressRecall() {
+export function useAddressRecall(syncOverride?: () => void) {
 	const queryClient = useQueryClient();
-	const { syncToAgent } = useAgentSync();
+	const { syncToAgent: defaultSyncToAgent } = useAgentSync();
+	const syncToAgent = syncOverride ?? defaultSyncToAgent;
 	const { setApiResults } = useApiStore();
 	const {
 		setActiveSearch,

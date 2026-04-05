@@ -46,6 +46,17 @@ export function Header({
 				</div>
 
 				<div className="flex items-center gap-2 sm:gap-3">
+					<Button
+						asChild
+						variant="outline"
+						size="sm"
+						className="rounded-full border-market-line/80 bg-white/70 px-3 text-market-ink shadow-none hover:bg-white lg:hidden"
+					>
+						<Link to="/address-finder-cartesia" preload="viewport">
+							<span className="sm:hidden">Voice</span>
+							<span className="hidden sm:inline">Voice Finder</span>
+						</Link>
+					</Button>
 					{(loaderData?.isSignedIn ?? isSignedIn) ? (
 						<UserButton />
 					) : (

@@ -223,7 +223,6 @@ GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 CARTESIA_API_KEY=your_cartesia_api_key_here
 CARTESIA_BRIDGE_SECRET=shared_secret_used_by_convex_and_cartesia_agent
 VITE_CARTESIA_AGENT_ID=your_cartesia_agent_id_here
-VITE_CARTESIA_API_KEY=your_cartesia_api_key_here # local fallback only
 
 # Application URL
 FRONTEND_URL=http://localhost:5173

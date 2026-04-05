@@ -452,16 +452,16 @@ test("customer portal creation is still auth-gated", async () => {
 
 test("Cartesia session ownership and bridge token protections hold", async () => {
 	const registerHandler = getHandler<
-		(ctx: { db: MockDb; auth: ReturnType<typeof createAuth> }, args: { sessionId: string }) => Promise<any>
+		(ctx: { db: MockDb; auth: ReturnType<typeof createAuth> }, args: { sessionId: string; anonymousOwnerToken?: string }) => Promise<any>
 	>(registerSession);
 	const pushHandler = getHandler<
 		(ctx: { db: MockDb }, args: { sessionId: string; updateType: string; data: string; bridgeToken: string }) => Promise<void>
 	>(pushUpdate);
 	const latestHandler = getHandler<
-		(ctx: { db: MockDb; auth: ReturnType<typeof createAuth> }, args: { sessionId: string }) => Promise<any>
+		(ctx: { db: MockDb; auth: ReturnType<typeof createAuth> }, args: { sessionId: string; anonymousOwnerToken?: string }) => Promise<any>
 	>(getLatestUpdate);
 	const clearHandler = getHandler<
-		(ctx: { db: MockDb; auth: ReturnType<typeof createAuth> }, args: { sessionId: string }) => Promise<void>
+		(ctx: { db: MockDb; auth: ReturnType<typeof createAuth> }, args: { sessionId: string; anonymousOwnerToken?: string }) => Promise<void>
 	>(clearSession);
 
 	await withEnv(
@@ -486,7 +486,7 @@ test("Cartesia session ownership and bridge token protections hold", async () =>
 			await assert.rejects(
 				() =>
 					registerHandler({ db, auth: createAuth(intruder) }, { sessionId }),
-				/Session is already owned by another user/,
+				/Session is already owned by another caller/,
 			);
 
 			await assert.rejects(
@@ -531,6 +531,85 @@ test("Cartesia session ownership and bridge token protections hold", async () =>
 			);
 
 			await clearHandler({ db, auth: createAuth(owner) }, { sessionId });
+			assert.equal(db.list("cartesiaSessions").length, 0);
+		},
+	);
+});
+
+test("Cartesia anonymous session capability protects public sessions", async () => {
+	const registerHandler = getHandler<
+		(ctx: { db: MockDb; auth: ReturnType<typeof createAuth> }, args: { sessionId: string; anonymousOwnerToken?: string }) => Promise<any>
+	>(registerSession);
+	const pushHandler = getHandler<
+		(ctx: { db: MockDb }, args: { sessionId: string; updateType: string; data: string; bridgeToken: string }) => Promise<void>
+	>(pushUpdate);
+	const latestHandler = getHandler<
+		(ctx: { db: MockDb; auth: ReturnType<typeof createAuth> }, args: { sessionId: string; anonymousOwnerToken?: string }) => Promise<any>
+	>(getLatestUpdate);
+	const clearHandler = getHandler<
+		(ctx: { db: MockDb; auth: ReturnType<typeof createAuth> }, args: { sessionId: string; anonymousOwnerToken?: string }) => Promise<void>
+	>(clearSession);
+
+	await withEnv(
+		{
+			CARTESIA_BRIDGE_SECRET: "bridge-secret",
+		},
+		async () => {
+			const db = new MockDb();
+			const sessionId = "session_public_12345678";
+			const ownerToken = "anon_owner_token_12345678";
+			const intruderToken = "anon_intruder_token_87654321";
+
+			await registerHandler(
+				{ db, auth: createAuth(null) },
+				{ sessionId, anonymousOwnerToken: ownerToken },
+			);
+
+			await assert.rejects(
+				() =>
+					registerHandler(
+						{ db, auth: createAuth(null) },
+						{ sessionId, anonymousOwnerToken: intruderToken },
+					),
+				/Session is already owned by another caller/,
+			);
+
+			await pushHandler(
+				{ db },
+				{
+					sessionId,
+					updateType: "selection",
+					data: "{\"step\":1}",
+					bridgeToken: "bridge-secret",
+				},
+			);
+
+			const ownerUpdate = await latestHandler(
+				{ db, auth: createAuth(null) },
+				{ sessionId, anonymousOwnerToken: ownerToken },
+			);
+			assert.equal(ownerUpdate?.version, 1);
+			assert.equal(ownerUpdate?.updateType, "selection");
+
+			const intruderUpdate = await latestHandler(
+				{ db, auth: createAuth(null) },
+				{ sessionId, anonymousOwnerToken: intruderToken },
+			);
+			assert.equal(intruderUpdate, null);
+
+			await assert.rejects(
+				() =>
+					clearHandler(
+						{ db, auth: createAuth(null) },
+						{ sessionId, anonymousOwnerToken: intruderToken },
+					),
+				/Not authorized to clear this Cartesia session/,
+			);
+
+			await clearHandler(
+				{ db, auth: createAuth(null) },
+				{ sessionId, anonymousOwnerToken: ownerToken },
+			);
 			assert.equal(db.list("cartesiaSessions").length, 0);
 		},
 	);

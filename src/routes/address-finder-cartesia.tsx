@@ -1,18 +1,14 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { AddressFinderUI } from "~/components/address-finder/AddressFinderUI";
 import { CartesiaAddressFinderBrain } from "~/components/address-finder/CartesiaAddressFinderBrain";
 import { PublicLayout } from "~/components/layout/PublicLayout";
-import { loadRequiredAuthState } from "../lib/legacy-route-data";
+import { loadOptionalAuthState } from "../lib/legacy-route-data";
 
 export const Route = createFileRoute("/address-finder-cartesia")({
-	loader: async () => {
-		const authState = await loadRequiredAuthState();
-		if (!authState.userId) {
-			throw redirect({ to: "/sign-in" });
-		}
-
-		return { isSignedIn: true };
-	},
+	head: () => ({
+		meta: [{ title: "Cartesia" }],
+	}),
+	loader: () => loadOptionalAuthState(),
 	component: AddressFinderCartesia,
 });
 
@@ -34,6 +30,9 @@ function AddressFinderCartesia() {
 							handlers.handleRecallConfirmedSelection
 						}
 						handleManualTyping={handlers.handleManualTyping}
+						handleManualAutocompleteStateChange={
+							handlers.handleManualAutocompleteStateChange
+						}
 						handleHideOptions={handlers.handleHideOptions}
 						state={handlers.state}
 						shouldShowSuggestions={handlers.shouldShowSuggestions}

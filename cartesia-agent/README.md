@@ -37,8 +37,9 @@ With **Cartesia Line**, tools run **server-side in Python**. The browser receive
 |------|---------|
 | `main.py` | Entry point — `VoiceAgentApp` with `LlmAgent` factory |
 | `tools.py` | 9 loopback tools calling Convex HTTP API + state bridge |
-| `config.py` | System prompt, LLM model, voice config |
-| `requirements.txt` | Python dependencies (`cartesia-line`, `httpx`) |
+| `intent_classification.py` | Parity-focused Cartesia intent classifier matching the shared TS rules |
+| `config.py` | System prompt and LLM configuration |
+| `requirements.txt` | Pinned Python dependencies (`cartesia-line==0.2.7`, `httpx==0.27.0`) |
 | `cartesia.toml` | Cartesia CLI deployment configuration |
 | `.env.example` | Environment variable template |
 
@@ -90,7 +91,7 @@ Since loopback tools cannot emit custom WebSocket events to the browser, we use 
 | Type | Payload | Browser Action |
 |------|---------|----------------|
 | `suggestions` | `{ query, intent, suggestions[] }` | Populates React Query cache, updates intent/search stores |
-| `selection` | `{ suggestion }` | Sets `selectedResult` in intent store |
+| `selection` | `{ suggestion, query? }` | Runs the shared validated selection pipeline and preserves original query context |
 | `show_options_again` | `{ query, intent, suggestions[] }` | Re-populates cache, clears selection, shows options |
 | `selection_acknowledged` | `{ acknowledged: bool }` | Sets UI sync flag |
 | `clear` | `{}` | Calls `clearSelectionAndSearch()`, resets UI flags |
@@ -104,8 +105,6 @@ Since loopback tools cannot emit custom WebSocket events to the browser, we use 
 | `CONVEX_URL` | Yes | Convex deployment URL (e.g., `https://your-deployment.convex.cloud`) |
 | `CARTESIA_BRIDGE_SECRET` | Yes | Shared secret required for `cartesia/sessionState:pushUpdate` |
 | `LLM_MODEL` | No | LiteLLM model string (default: `gemini/gemini-2.5-flash`) |
-| `CARTESIA_VOICE_ID` | No | Cartesia voice UUID (default: Barbershop Man) |
-| `CARTESIA_SESSION_ID` | No | Session ID for state bridge (default: `default`) |
 
 These are set on the Cartesia deployment, **not** in a local `.env` file (the deployment environment handles them):
 
@@ -137,6 +136,7 @@ uv pip install -r requirements.txt
 # Set env vars
 export GEMINI_API_KEY=your_key
 export CONVEX_URL=https://your-deployment.convex.cloud
+export CARTESIA_BRIDGE_SECRET=shared_secret_used_by_convex_and_cartesia_agent
 
 # Run the agent server
 uv run python main.py
@@ -205,16 +205,21 @@ convex/
 
 1. Browser calls Convex action `cartesia.getAccessToken` which mints a short-lived JWT via `POST https://api.cartesia.ai/access-token` using the server-side `CARTESIA_API_KEY`.
 2. Browser connects to `wss://api.cartesia.ai/agents/stream/{agent_id}?access_token={token}`.
-3. Fallback for local dev: uses `VITE_CARTESIA_API_KEY` directly as `?api_key=` when Convex token minting is unavailable.
+3. Browser capture starts only after Cartesia returns an `ack` with a valid `stream_id`.
 
 ### Required Browser-Side Env Vars
 
 ```bash
 # .env.local
 VITE_CARTESIA_AGENT_ID=<your_agent_id>
-VITE_CARTESIA_API_KEY=<your_api_key>        # Fallback for local dev
-CARTESIA_API_KEY=<your_api_key>             # For Convex token minting (set via npx convex env set)
-CARTESIA_BRIDGE_SECRET=<shared_secret>      # Must match the Cartesia deployment env
+```
+
+Set these in Convex or the Cartesia deployment environment, not in the browser bundle:
+
+```bash
+npx convex env set CARTESIA_API_KEY=<your_api_key>
+npx convex env set CARTESIA_BRIDGE_SECRET=<shared_secret>
+cartesia env set --agent-id=<AGENT_ID> CARTESIA_BRIDGE_SECRET=<shared_secret>
 ```
 
 ## LLM Configuration
@@ -243,7 +248,6 @@ The system prompt in `config.py` enforces the same voice interaction rules as th
 
 ## Known Limitations
 
-1. **Session ID**: Currently uses a fixed `"default"` session ID. In production, the browser should send its session ID to the agent via the call context or a custom event.
-2. **No real-time context sync**: Unlike ElevenLabs (which has `window.setVariable` for live prompt context), the Cartesia agent relies on tool calls to inspect state. There's no way to push dynamic context variables to the LLM between turns.
-3. **Extra latency**: The state bridge adds ~200-500ms vs ElevenLabs' direct browser store updates (Python tool → Convex HTTP → Convex subscription → browser).
-4. **Module-level state**: `_session_state` is module-level, so concurrent calls on the same deployment instance could interfere. In production, state should be scoped to the call context.
+1. **Extra latency**: The state bridge adds ~200-500ms vs ElevenLabs' direct browser store updates (Python tool → Convex HTTP → Convex subscription → browser).
+2. **No live prompt variable sync**: Unlike ElevenLabs `window.setVariable`, Cartesia still relies on tool/state-bridge updates between turns rather than continuously pushing browser context into the LLM.
+3. **Version coordination matters**: The browser WebSocket client and Convex access-token minting must stay on the same `Cartesia-Version` pin.

@@ -1,0 +1,14 @@
+[
+	{ "query": "Melbourne", "intent": "suburb" },
+	{ "query": "St Kilda", "intent": "suburb" },
+	{ "query": "St Kilda Road", "intent": "street" },
+	{ "query": "123 St Kilda Road", "intent": "address" },
+	{ "query": "Box Hill", "intent": "suburb" },
+	{ "query": "Mount Waverley", "intent": "suburb" },
+	{ "query": "Point Cook", "intent": "suburb" },
+	{ "query": "Collins Street", "intent": "street" },
+	{ "query": "18 Smith Street", "intent": "address" },
+	{ "query": "Unit 4 99 Collins Street", "intent": "address" },
+	{ "query": "10/20 Collins St", "intent": "address" },
+	{ "query": "Melbourne 3000", "intent": "suburb" }
+]

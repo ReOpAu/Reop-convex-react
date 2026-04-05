@@ -4,6 +4,7 @@ import { v } from "convex/values";
 export const cartesiaSessions = defineTable({
 	sessionId: v.string(),
 	ownerTokenIdentifier: v.string(),
+	anonymousOwnerToken: v.optional(v.string()),
 	updateType: v.string(),
 	data: v.string(), // JSON-encoded payload
 	createdAt: v.number(),

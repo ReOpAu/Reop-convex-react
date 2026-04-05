@@ -12,18 +12,20 @@ export class AudioPlayer {
 	private queue: Float32Array[] = [];
 	private isPlaying = false;
 	private nextStartTime = 0;
+	private currentSource: AudioBufferSourceNode | null = null;
 
 	/**
 	 * Initialize or resume the AudioContext.
 	 * Must be called from a user gesture context (click/tap).
 	 */
-	async init(): Promise<void> {
+	async init(): Promise<this> {
 		if (!this.audioContext) {
 			this.audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
 		}
 		if (this.audioContext.state === "suspended") {
 			await this.audioContext.resume();
 		}
+		return this;
 	}
 
 	/**
@@ -59,6 +61,7 @@ export class AudioPlayer {
 		const source = this.audioContext.createBufferSource();
 		source.buffer = buffer;
 		source.connect(this.audioContext.destination);
+		this.currentSource = source;
 
 		// Schedule playback to avoid gaps between chunks
 		const currentTime = this.audioContext.currentTime;
@@ -67,6 +70,9 @@ export class AudioPlayer {
 		this.nextStartTime = startTime + buffer.duration;
 
 		source.onended = () => {
+			if (this.currentSource === source) {
+				this.currentSource = null;
+			}
 			this.playNext();
 		};
 	}
@@ -77,8 +83,18 @@ export class AudioPlayer {
 	 */
 	flush(): void {
 		this.queue = [];
-		this.isPlaying = false;
 		this.nextStartTime = 0;
+		if (this.currentSource) {
+			this.currentSource.onended = null;
+			try {
+				this.currentSource.stop();
+			} catch {
+				// Ignore stop errors for sources that already ended.
+			}
+			this.currentSource.disconnect();
+			this.currentSource = null;
+		}
+		this.isPlaying = false;
 	}
 
 	/**

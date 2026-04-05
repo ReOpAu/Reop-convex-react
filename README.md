@@ -103,7 +103,6 @@ VITE_ELEVENLABS_ADDRESS_AGENT_ID=your_agent_id_here
 CARTESIA_API_KEY=your_cartesia_api_key_here
 CARTESIA_BRIDGE_SECRET=shared_secret_used_by_convex_and_cartesia_agent
 VITE_CARTESIA_AGENT_ID=your_cartesia_agent_id_here
-VITE_CARTESIA_API_KEY=your_cartesia_api_key_here # local fallback only
 
 # Frontend URL for redirects
 FRONTEND_URL=http://localhost:5173
@@ -219,7 +218,6 @@ cartesia deploy --agent-id=<AGENT_ID>
 
 # 4. Set browser-side env vars in .env.local
 # VITE_CARTESIA_AGENT_ID=<agent_id>
-# VITE_CARTESIA_API_KEY=<api_key>
 # Also set CARTESIA_API_KEY in Convex: npx convex env set CARTESIA_API_KEY=<key>
 
 # 5. Visit /address-finder-cartesia
@@ -373,7 +371,6 @@ Make sure to deploy the output of `npm run build`
 - `CARTESIA_API_KEY` - Cartesia API key (server-side, set in Convex env)
 - `CARTESIA_BRIDGE_SECRET` - Shared secret required for Cartesia state bridge writes
 - `VITE_CARTESIA_AGENT_ID` - Your Cartesia agent ID
-- `VITE_CARTESIA_API_KEY` - Optional local fallback when not minting Cartesia tokens via Convex
 - `VITE_MAPBOX_ACCESS_TOKEN` - Mapbox token for listing map features
 - `FRONTEND_URL` - Your production frontend URL
 

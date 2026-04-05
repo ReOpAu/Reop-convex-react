@@ -70,7 +70,3 @@ INTRODUCTION = "Hi! I'm your address finder. Tell me an address, suburb, or stre
 
 LLM_MODEL = os.getenv("LLM_MODEL", "gemini/gemini-2.5-flash")
 LLM_TEMPERATURE = 0.3
-
-# Cartesia voice config
-VOICE_ID = os.getenv("CARTESIA_VOICE_ID", "a0e99841-438c-4a64-b679-ae501e7d6091")  # Barbershop Man
-VOICE_MODEL = "sonic-3"

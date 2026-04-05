@@ -8,11 +8,12 @@ browser state.
 
 import json
 import os
-import re
 from typing import Annotated
 
 import httpx
 from line.llm_agent import loopback_tool
+
+from intent_classification import classify_location_intent
 
 CONVEX_URL = os.getenv("CONVEX_URL", "")
 BRIDGE_TOKEN = os.getenv("CARTESIA_BRIDGE_SECRET", "")
@@ -38,53 +39,6 @@ async def _call_convex_mutation(path: str, args: dict) -> dict:
     return await _call_convex(path, args, "mutation")
 
 
-def _classify_intent(query: str) -> str:
-    q = query.strip().lower()
-    words = q.split()
-
-    if words and re.match(r"^\d", words[0]):
-        return "address"
-
-    street_keywords = [
-        "street",
-        "st",
-        "road",
-        "rd",
-        "avenue",
-        "ave",
-        "drive",
-        "dr",
-        "lane",
-        "ln",
-        "court",
-        "ct",
-        "crescent",
-        "cres",
-        "place",
-        "pl",
-        "way",
-        "parade",
-        "pde",
-        "boulevard",
-        "blvd",
-        "highway",
-        "hwy",
-        "terrace",
-        "tce",
-    ]
-    for word in words:
-        if word in street_keywords:
-            return "street"
-
-    if len(words) == 1 and len(q) >= 3:
-        return "suburb"
-
-    if len(words) == 2 and not any(c.isdigit() for c in q):
-        return "suburb"
-
-    return "general"
-
-
 def _format_suggestion(suggestion: dict) -> dict:
     return {
         "placeId": suggestion.get("placeId", ""),
@@ -97,10 +51,22 @@ def _format_suggestion(suggestion: dict) -> dict:
     }
 
 
+def _mark_validated_suggestion(suggestion: dict) -> dict:
+    enriched = dict(suggestion)
+    types = list(enriched.get("types") or [])
+    for marker in ("street_address", "validated_address"):
+        if marker not in types:
+            types.append(marker)
+    enriched["types"] = types
+    enriched["resultType"] = enriched.get("resultType") or "address"
+    return enriched
+
+
 def build_tools(session_id: str):
     session_state = {
         "last_query": None,
         "last_suggestions": [],
+        "last_intent": "general",
         "current_selection": None,
         "selection_acknowledged": False,
     }
@@ -108,6 +74,7 @@ def build_tools(session_id: str):
     def _reset_state():
         session_state["last_query"] = None
         session_state["last_suggestions"] = []
+        session_state["last_intent"] = "general"
         session_state["current_selection"] = None
         session_state["selection_acknowledged"] = False
 
@@ -138,7 +105,7 @@ def build_tools(session_id: str):
         session_state["current_selection"] = None
         session_state["selection_acknowledged"] = False
 
-        intent = _classify_intent(query)
+        intent = classify_location_intent(query)
 
         if intent == "address":
             try:
@@ -169,16 +136,28 @@ def build_tools(session_id: str):
                 loose_value = (loose_result or {}).get("value", loose_result or {})
 
                 if strict_value.get("success") and strict_value.get("suggestions"):
-                    validated = strict_value["suggestions"][0]
+                    validated = _mark_validated_suggestion(strict_value["suggestions"][0])
                     all_suggestions = (
                         loose_value.get("suggestions", [])
                         if loose_value.get("success")
                         else [validated]
                     )
                     detected_intent = strict_value.get("detectedIntent", intent)
+                    cached_suggestions = [
+                        validated
+                        if suggestion.get("placeId") == validated.get("placeId")
+                        else suggestion
+                        for suggestion in all_suggestions
+                    ]
+                    if not any(
+                        suggestion.get("placeId") == validated.get("placeId")
+                        for suggestion in cached_suggestions
+                    ):
+                        cached_suggestions = [validated, *cached_suggestions]
 
                     session_state["last_query"] = query
-                    session_state["last_suggestions"] = all_suggestions
+                    session_state["last_suggestions"] = cached_suggestions
+                    session_state["last_intent"] = detected_intent
 
                     await _push_state_update(
                         "suggestions",
@@ -187,7 +166,7 @@ def build_tools(session_id: str):
                             "intent": detected_intent,
                             "suggestions": [
                                 _format_suggestion(suggestion)
-                                for suggestion in all_suggestions
+                                for suggestion in cached_suggestions
                             ],
                         },
                     )
@@ -207,6 +186,7 @@ def build_tools(session_id: str):
 
                     session_state["last_query"] = query
                     session_state["last_suggestions"] = suggestions
+                    session_state["last_intent"] = detected_intent
 
                     await _push_state_update(
                         "suggestions",
@@ -229,6 +209,9 @@ def build_tools(session_id: str):
                         }
                     )
 
+                session_state["last_query"] = query
+                session_state["last_suggestions"] = []
+                session_state["last_intent"] = intent
                 return json.dumps(
                     {
                         "status": "validation_failed",
@@ -236,6 +219,9 @@ def build_tools(session_id: str):
                     }
                 )
             except Exception as error:
+                session_state["last_query"] = query
+                session_state["last_suggestions"] = []
+                session_state["last_intent"] = intent
                 return json.dumps({"status": "error", "error": str(error)})
 
         try:
@@ -244,11 +230,17 @@ def build_tools(session_id: str):
                 {"query": query, "intent": intent, "maxResults": 5, "isAutocomplete": True},
             )
         except Exception as error:
+            session_state["last_query"] = query
+            session_state["last_suggestions"] = []
+            session_state["last_intent"] = intent
             return json.dumps({"status": "error", "error": f"Search failed: {error}"})
 
         value = result.get("value", result)
 
         if not value.get("success"):
+            session_state["last_query"] = query
+            session_state["last_suggestions"] = []
+            session_state["last_intent"] = intent
             return json.dumps(
                 {
                     "status": "error",
@@ -261,6 +253,7 @@ def build_tools(session_id: str):
 
         session_state["last_query"] = query
         session_state["last_suggestions"] = suggestions
+        session_state["last_intent"] = detected_intent
 
         await _push_state_update(
             "suggestions",
@@ -342,6 +335,7 @@ def build_tools(session_id: str):
             "selection",
             {
                 "suggestion": _format_suggestion(enriched),
+                "query": session_state.get("last_query"),
             },
         )
 
@@ -423,6 +417,7 @@ def build_tools(session_id: str):
         return json.dumps(
             {
                 "last_query": session_state.get("last_query"),
+                "last_intent": session_state.get("last_intent"),
                 "num_suggestions": len(session_state.get("last_suggestions", [])),
                 "has_selection": selection is not None,
                 "selection_acknowledged": session_state.get(
@@ -473,7 +468,7 @@ def build_tools(session_id: str):
             "show_options_again",
             {
                 "query": query,
-                "intent": "general",
+                "intent": session_state.get("last_intent", "general"),
                 "suggestions": [
                     _format_suggestion(suggestion) for suggestion in suggestions
                 ],

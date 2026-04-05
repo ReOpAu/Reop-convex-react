@@ -1,11 +1,12 @@
 import { v } from "convex/values";
+import { CARTESIA_API_VERSION } from "../../shared/cartesia/constants";
 import { api } from "../_generated/api";
 import { action } from "../_generated/server";
-import { requireIdentity } from "../utils/auth";
 
 export const getAccessToken = action({
 	args: {
 		sessionId: v.string(),
+		anonymousOwnerToken: v.optional(v.string()),
 	},
 	returns: v.union(
 		v.object({
@@ -18,8 +19,6 @@ export const getAccessToken = action({
 		}),
 	),
 	handler: async (ctx, args) => {
-		await requireIdentity(ctx);
-
 		const apiKey = process.env.CARTESIA_API_KEY;
 		if (!apiKey) {
 			return {
@@ -35,16 +34,17 @@ export const getAccessToken = action({
 			};
 		}
 
-		await ctx.runMutation(api.cartesia.sessionState.registerSession, {
-			sessionId: args.sessionId,
-		});
-
 		try {
+			await ctx.runMutation(api.cartesia.sessionState.registerSession, {
+				sessionId: args.sessionId,
+				anonymousOwnerToken: args.anonymousOwnerToken,
+			});
+
 			const resp = await fetch("https://api.cartesia.ai/access-token", {
 				method: "POST",
 				headers: {
 					Authorization: `Bearer ${apiKey}`,
-					"Cartesia-Version": "2025-04-16",
+					"Cartesia-Version": CARTESIA_API_VERSION,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({

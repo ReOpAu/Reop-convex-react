@@ -1,0 +1,1 @@
+export const CARTESIA_API_VERSION = "2025-04-16";
