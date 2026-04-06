@@ -6,6 +6,7 @@
 import { decodeAudioFromWs } from "./audioEncoder";
 
 const SAMPLE_RATE = 44100;
+const EMPTY_FREQUENCY_DATA = new Uint8Array(0);
 
 interface AudioPlayerOptions {
 	onPlaybackStateChange?: (isPlaying: boolean) => void;
@@ -13,6 +14,9 @@ interface AudioPlayerOptions {
 
 export class AudioPlayer {
 	private audioContext: AudioContext | null = null;
+	private outputAnalyser: AnalyserNode | null = null;
+	private outputGain: GainNode | null = null;
+	private outputFrequencyData = EMPTY_FREQUENCY_DATA;
 	private queue: Float32Array[] = [];
 	private isPlaying = false;
 	private nextStartTime = 0;
@@ -38,6 +42,15 @@ export class AudioPlayer {
 	async init(): Promise<this> {
 		if (!this.audioContext) {
 			this.audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
+			this.outputAnalyser = this.audioContext.createAnalyser();
+			this.outputAnalyser.fftSize = 256;
+			this.outputAnalyser.smoothingTimeConstant = 0.78;
+			this.outputGain = this.audioContext.createGain();
+			this.outputGain.connect(this.outputAnalyser);
+			this.outputAnalyser.connect(this.audioContext.destination);
+			this.outputFrequencyData = new Uint8Array(
+				this.outputAnalyser.frequencyBinCount,
+			);
 		}
 		if (this.audioContext.state === "suspended") {
 			await this.audioContext.resume();
@@ -77,7 +90,7 @@ export class AudioPlayer {
 
 		const source = this.audioContext.createBufferSource();
 		source.buffer = buffer;
-		source.connect(this.audioContext.destination);
+		source.connect(this.outputGain ?? this.audioContext.destination);
 		this.currentSource = source;
 
 		// Schedule playback to avoid gaps between chunks
@@ -114,6 +127,37 @@ export class AudioPlayer {
 		this.setPlaybackState(false);
 	}
 
+	getByteFrequencyData(): Uint8Array {
+		if (!this.outputAnalyser) {
+			return EMPTY_FREQUENCY_DATA;
+		}
+
+		if (
+			this.outputFrequencyData.length !== this.outputAnalyser.frequencyBinCount
+		) {
+			this.outputFrequencyData = new Uint8Array(
+				this.outputAnalyser.frequencyBinCount,
+			);
+		}
+
+		this.outputAnalyser.getByteFrequencyData(this.outputFrequencyData);
+		return this.outputFrequencyData;
+	}
+
+	getVolume(): number {
+		const frequencyData = this.getByteFrequencyData();
+		if (frequencyData.length === 0) {
+			return 0;
+		}
+
+		let total = 0;
+		for (let index = 0; index < frequencyData.length; index += 1) {
+			total += frequencyData[index] ?? 0;
+		}
+
+		return total / frequencyData.length / 255;
+	}
+
 	/**
 	 * Destroy the audio context and clean up.
 	 */
@@ -123,5 +167,8 @@ export class AudioPlayer {
 			await this.audioContext.close();
 			this.audioContext = null;
 		}
+		this.outputAnalyser = null;
+		this.outputGain = null;
+		this.outputFrequencyData = EMPTY_FREQUENCY_DATA;
 	}
 }

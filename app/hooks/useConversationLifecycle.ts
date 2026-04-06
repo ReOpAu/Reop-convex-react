@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useAddressFinderClientTools } from "~/elevenlabs/hooks/useAddressFinderClientTools";
 import { useConversationManager } from "~/elevenlabs/hooks/useConversationManager";
+import type { VoiceVisualizerSource } from "~/components/address-finder/voice-visualizer/types";
 import { useAudioManager } from "~/hooks/useAudioManager";
 import type { Suggestion } from "~/stores/types";
 
@@ -37,7 +38,30 @@ export function useConversationLifecycle({
 		conversationRef.current = conversation;
 	}, [conversation]);
 
-	const { startRecording, stopRecording } = useAudioManager();
+	const {
+		startRecording,
+		stopRecording,
+		getInputByteFrequencyData,
+		getInputLevel,
+	} = useAudioManager();
+
+	const voiceVisualizer = useMemo<VoiceVisualizerSource>(
+		() => ({
+			provider: "elevenlabs",
+			supportsInputAnalyser: true,
+			supportsOutputAnalyser: true,
+			getInputByteFrequencyData,
+			getOutputByteFrequencyData: conversation.getOutputByteFrequencyData,
+			getInputLevel,
+			getOutputLevel: conversation.getOutputVolume,
+		}),
+		[
+			conversation.getOutputByteFrequencyData,
+			conversation.getOutputVolume,
+			getInputByteFrequencyData,
+			getInputLevel,
+		],
+	);
 
 	// Recording handlers
 	const handleStartRecording = useCallback(() => {
@@ -63,5 +87,6 @@ export function useConversationLifecycle({
 		handleStartRecording,
 		handleStopRecording,
 		handleRequestAgentState,
+		voiceVisualizer,
 	};
 }

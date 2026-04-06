@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "convex/_generated/api";
 import { useAction, useMutation } from "convex/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCartesiaAudioManager } from "~/cartesia/hooks/useCartesiaAudioManager";
 import { useCartesiaConversation } from "~/cartesia/hooks/useCartesiaConversation";
 import { useCartesiaEventHandler } from "~/cartesia/hooks/useCartesiaEventHandler";
+import type { VoiceVisualizerSource } from "~/components/address-finder/voice-visualizer/types";
 import type { RuralConfirmationState } from "~/hooks/actions/types";
 import { useActionHandler } from "~/hooks/useActionHandler";
 import {
@@ -60,6 +61,7 @@ export interface CartesiaAddressFinderBrainHandlers {
 		isVoiceActive: boolean;
 		isAgentSpeaking: boolean;
 		agentRequestedManual: boolean;
+		voiceVisualizer: VoiceVisualizerSource | null;
 		history: HistoryItem[];
 		searchHistory: SearchHistoryEntry[];
 		addressSelections: AddressSelectionEntry[];
@@ -171,7 +173,29 @@ export function CartesiaAddressFinderBrain({
 		playAudioChunk,
 		flushAudio,
 		destroyAudio,
+		getInputByteFrequencyData,
+		getOutputByteFrequencyData,
+		getInputLevel,
+		getOutputLevel,
 	} = useCartesiaAudioManager({ sendMediaInput });
+
+	const voiceVisualizer = useMemo<VoiceVisualizerSource>(
+		() => ({
+			provider: "cartesia",
+			supportsInputAnalyser: true,
+			supportsOutputAnalyser: true,
+			getInputByteFrequencyData,
+			getOutputByteFrequencyData,
+			getInputLevel,
+			getOutputLevel,
+		}),
+		[
+			getInputByteFrequencyData,
+			getInputLevel,
+			getOutputByteFrequencyData,
+			getOutputLevel,
+		],
+	);
 
 	// --- State from stores (identical to ElevenLabs Brain) ---
 	const {
@@ -564,6 +588,7 @@ export function CartesiaAddressFinderBrain({
 			isVoiceActive,
 			isAgentSpeaking,
 			agentRequestedManual,
+			voiceVisualizer,
 			history,
 			searchHistory,
 			addressSelections,

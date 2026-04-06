@@ -6,10 +6,17 @@ import {
 	PencilLine,
 	Radio,
 	Square,
+	Sparkles,
 } from "lucide-react";
 import type React from "react";
 import { useMemo, useState } from "react";
 import { cn } from "~/lib/utils";
+import { VoiceSpectrumDisplay } from "./voice-visualizer/VoiceSpectrumDisplay";
+import { useVoiceConsoleStage } from "./voice-visualizer/useVoiceConsoleStage";
+import type {
+	VoiceConsoleStage,
+	VoiceVisualizerSource,
+} from "./voice-visualizer/types";
 
 interface VoiceInputControllerProps {
 	conversationStatus: string;
@@ -17,68 +24,42 @@ interface VoiceInputControllerProps {
 	isVoiceActive: boolean;
 	isAgentSpeaking: boolean;
 	agentRequestedManual: boolean;
+	voiceVisualizer: VoiceVisualizerSource | null;
 	startRecording: () => void | Promise<void>;
 	stopRecording: () => void | Promise<void>;
-}
-
-function ActivityMeter({
-	active,
-	tone,
-}: {
-	active: boolean;
-	tone: "sky" | "orange";
-}) {
-	const activeTone =
-		tone === "sky"
-			? "bg-sky-500 shadow-[0_0_18px_rgba(14,165,233,0.45)]"
-			: "bg-orange-500 shadow-[0_0_18px_rgba(249,115,22,0.4)]";
-
-	return (
-		<div className="flex h-8 items-end gap-1.5">
-			{[0, 1, 2, 3, 4].map((bar) => (
-				<span
-					key={bar}
-					className={cn(
-						"w-1.5 rounded-full transition-all duration-300 ease-out",
-						active ? `${activeTone} animate-pulse` : "bg-stone-300/80",
-					)}
-					style={{
-						height: active ? `${14 + ((bar % 3) + 1) * 6}px` : `${8 + bar * 2}px`,
-						animationDelay: `${bar * 90}ms`,
-					}}
-				/>
-			))}
-		</div>
-	);
 }
 
 function StatusTile({
 	icon: Icon,
 	label,
 	value,
+	detail,
 	active,
 	tone = "neutral",
 }: {
 	icon: React.ComponentType<{ className?: string }>;
 	label: string;
 	value: string;
+	detail: string;
 	active: boolean;
 	tone?: "neutral" | "sky" | "orange" | "emerald";
 }) {
 	const toneClasses =
 		tone === "sky"
-			? "border-sky-200/80 bg-sky-50/80 text-sky-900"
+			? "border-[#b7f3ff] bg-[linear-gradient(180deg,rgba(232,251,255,0.98),rgba(212,245,255,0.9))] text-[#083047]"
 			: tone === "orange"
-				? "border-orange-200/80 bg-orange-50/80 text-orange-900"
+				? "border-[#ffd7bb] bg-[linear-gradient(180deg,rgba(255,246,238,0.98),rgba(255,235,214,0.9))] text-[#47240b]"
 				: tone === "emerald"
-					? "border-emerald-200/80 bg-emerald-50/80 text-emerald-900"
-					: "border-stone-200/80 bg-white/70 text-stone-900";
+					? "border-[#cdecd5] bg-[linear-gradient(180deg,rgba(243,252,246,0.98),rgba(225,245,231,0.9))] text-[#143421]"
+					: "border-stone-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.92))] text-stone-900";
 
 	return (
 		<div
 			className={cn(
-				"rounded-2xl border px-4 py-3 transition-all duration-300",
-				active ? toneClasses : "border-stone-200/70 bg-white/55 text-stone-700",
+				"rounded-[1.35rem] border px-4 py-3 transition-all duration-300",
+				active
+					? toneClasses
+					: "border-stone-200/70 bg-white/78 text-stone-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)]",
 			)}
 		>
 			<div className="flex items-center gap-2">
@@ -88,13 +69,35 @@ function StatusTile({
 						active && "scale-110",
 					)}
 				/>
-				<p className="text-[11px] font-semibold uppercase tracking-[0.22em]">
+				<p className="text-[11px] font-semibold uppercase tracking-[0.24em]">
 					{label}
 				</p>
 			</div>
-			<p className="mt-2 text-sm font-medium leading-tight">{value}</p>
+			<p className="mt-2 text-sm font-semibold leading-tight">{value}</p>
+			<p className="mt-1 text-xs leading-5 text-current/72">{detail}</p>
 		</div>
 	);
+}
+
+function getStageLabel(stage: VoiceConsoleStage) {
+	switch (stage) {
+		case "connecting":
+			return "Connecting";
+		case "ready":
+			return "Ready";
+		case "user-speaking":
+			return "User speaking";
+		case "thinking":
+			return "Agent thinking";
+		case "agent-speaking":
+			return "Agent speaking";
+		case "manual-live":
+			return "Hybrid live";
+		case "error":
+			return "Session issue";
+		default:
+			return "Standby";
+	}
 }
 
 const VoiceInputController: React.FC<VoiceInputControllerProps> = ({
@@ -103,6 +106,7 @@ const VoiceInputController: React.FC<VoiceInputControllerProps> = ({
 	isVoiceActive,
 	isAgentSpeaking,
 	agentRequestedManual,
+	voiceVisualizer,
 	startRecording,
 	stopRecording,
 }) => {
@@ -110,89 +114,135 @@ const VoiceInputController: React.FC<VoiceInputControllerProps> = ({
 		null,
 	);
 
-	const isConnecting =
-		conversationStatus === "connecting" || pendingAction === "start";
-	const isConnected = conversationStatus === "connected";
+	const displayConversationStatus =
+		pendingAction === "start" ? "connecting" : conversationStatus;
+	const isConnecting = displayConversationStatus === "connecting";
+	const isConnected = displayConversationStatus === "connected";
 	const isStopping = pendingAction === "stop";
-	const hasError = conversationStatus === "error";
+	const hasError = displayConversationStatus === "error";
 	const isIdle = !isRecording && !isConnecting && !isConnected && !hasError;
 	const canToggle = !pendingAction && !(isConnecting && !isRecording);
 
-	const sessionCopy = useMemo(() => {
-		if (hasError) {
-			return {
-				kicker: "Session issue",
-				title: "We could not open the voice session.",
-				body: "Try again, or use the manual search below while the connection settles.",
-			};
-		}
-
-		if (isConnecting) {
-			return {
-				kicker: "Connecting",
-				title: "Opening the live voice channel.",
-				body: "This usually takes a moment while the session comes online.",
-			};
-		}
-
-		if (isAgentSpeaking) {
-			return {
-				kicker: "Agent speaking",
-				title: "The agent is responding now.",
-				body: "Watch the address results update while the reply plays back.",
-			};
-		}
-
-		if (agentRequestedManual && isRecording) {
-			return {
-				kicker: "Hybrid mode",
-				title: "Voice is live and typing is open.",
-				body: "Use whichever is faster. The session will keep listening while you type.",
-			};
-		}
-
-		if (isVoiceActive) {
-			return {
-				kicker: "Live input",
-				title: "We are hearing you clearly.",
-				body: "Keep speaking naturally and let the search keep up with you.",
-			};
-		}
-
-		if (isRecording && isConnected) {
-			return {
-				kicker: "Ready",
-				title: "The session is live and ready for you.",
-				body: "Speak whenever you are ready. Manual typing stays available below.",
-			};
-		}
-
-		return {
-			kicker: "Ready",
-			title: "Start a live voice search.",
-			body: "Tap the orb, wait for the session to open, then say the address naturally.",
-		};
-	}, [
-		agentRequestedManual,
-		hasError,
-		isAgentSpeaking,
-		isConnected,
-		isConnecting,
+	const { stage, isAwaitingAgent } = useVoiceConsoleStage({
+		conversationStatus: displayConversationStatus,
 		isRecording,
 		isVoiceActive,
-	]);
+		isAgentSpeaking,
+		agentRequestedManual,
+	});
+
+	const sessionCopy = useMemo(() => {
+		switch (stage) {
+			case "error":
+				return {
+					kicker: "Session issue",
+					title: "The voice line did not come up cleanly.",
+					body: "Retry the session, or keep typing below while the connection settles.",
+				};
+			case "connecting":
+				return {
+					kicker: "Connecting",
+					title: "Opening the live voice channel.",
+					body: "The console is warming up the mic path, playback bus, and session handshake.",
+				};
+			case "agent-speaking":
+				return {
+					kicker: "Agent speaking",
+					title: "The reply is on air now.",
+					body: "Watch the warm output lane while the address results update in real time.",
+				};
+			case "thinking":
+				return {
+					kicker: "Stand by",
+					title: "The agent is composing the next turn.",
+					body: "Keep the session live. You can jump back in by voice or wait for the reply.",
+				};
+			case "manual-live":
+				return {
+					kicker: "Hybrid mode",
+					title: "Voice stays live while typing opens.",
+					body: "Use whichever is faster. The session remains open and the equaliser keeps monitoring both sides.",
+				};
+			case "user-speaking":
+				return {
+					kicker: "Live input",
+					title: "Your speech is landing clearly.",
+					body: "Keep speaking naturally. The input lane is driven by the real mic signal, not a decorative loop.",
+				};
+			case "ready":
+				return {
+					kicker: "Ready",
+					title: "The console is live and waiting for you.",
+					body: "Start speaking whenever you like. Manual typing remains available below if you need it.",
+				};
+			default:
+				return {
+					kicker: "Standby",
+					title: "Start a live voice search.",
+					body: "Tap the control, wait for the channel to open, then say the address as you would naturally.",
+				};
+		}
+	}, [stage]);
 
 	const buttonTone = hasError
 		? "from-rose-500 via-red-500 to-orange-500"
-		: isAgentSpeaking
+		: stage === "agent-speaking"
 			? "from-orange-500 via-amber-500 to-rose-500"
-			: isVoiceActive
+			: stage === "user-speaking"
 				? "from-sky-500 via-cyan-400 to-emerald-400"
-				: isRecording || isConnecting
-					? "from-slate-900 via-slate-800 to-sky-700"
-					: "from-stone-950 via-stone-800 to-stone-700";
+				: stage === "manual-live"
+					? "from-[#1b2a34] via-[#274556] to-[#44676e]"
+					: isRecording || isConnecting
+						? "from-slate-900 via-slate-800 to-sky-700"
+						: "from-stone-950 via-stone-800 to-stone-700";
 
 	const buttonLabel = isRecording ? "Stop voice session" : "Start voice session";
+	const stageLabel = getStageLabel(stage);
+
+	const controlCopy = useMemo(() => {
+		switch (stage) {
+			case "connecting":
+				return {
+					title: "Signal path coming online",
+					body: "Once the channel connects, the spectrum will switch from standby to live analyser data.",
+				};
+			case "agent-speaking":
+				return {
+					title: "Playback bus active",
+					body: "The lower lane is reading real output energy from the agent response path.",
+				};
+			case "thinking":
+				return {
+					title: "Reply pending",
+					body: "The agent has your last phrase and is preparing the next response.",
+				};
+			case "manual-live":
+				return {
+					title: "Typing lane open",
+					body: "Manual input is invited without dropping the active session.",
+				};
+			case "user-speaking":
+				return {
+					title: "Mic signal present",
+					body: "The upper lane is reading the active microphone graph in real time.",
+				};
+			case "ready":
+				return {
+					title: "Console armed",
+					body: "Speak to search, or type below if the AI asks for a precise follow-up.",
+				};
+			case "error":
+				return {
+					title: "Retry recommended",
+					body: "The control is safe to re-open. Manual search stays available regardless.",
+				};
+			default:
+				return {
+					title: "Ready on tap",
+					body: "The equaliser stays dark until the next session starts.",
+				};
+		}
+	}, [stage]);
 
 	const handleClick = () => {
 		if (!canToggle) {
@@ -212,10 +262,10 @@ const VoiceInputController: React.FC<VoiceInputControllerProps> = ({
 	};
 
 	return (
-		<div className="relative overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(249,115,22,0.12),transparent_30%),linear-gradient(135deg,_rgba(255,252,247,0.98),_rgba(247,241,231,0.98))] p-6 shadow-[0_24px_70px_-36px_rgba(15,23,42,0.45)]">
+		<div className="relative overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(92,225,230,0.1),transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(255,157,77,0.12),transparent_30%),linear-gradient(135deg,_rgba(255,252,247,0.98),_rgba(247,241,231,0.98))] p-6 shadow-[0_24px_70px_-36px_rgba(15,23,42,0.45)]">
 			<div className="pointer-events-none absolute inset-0">
-				<div className="absolute left-[-3.5rem] top-[-3rem] h-32 w-32 rounded-full bg-sky-200/30 blur-3xl" />
-				<div className="absolute bottom-[-4rem] right-[-2rem] h-36 w-36 rounded-full bg-orange-200/30 blur-3xl" />
+				<div className="absolute left-[-3.5rem] top-[-3rem] h-32 w-32 rounded-full bg-sky-200/20 blur-3xl" />
+				<div className="absolute bottom-[-4rem] right-[-2rem] h-36 w-36 rounded-full bg-orange-200/20 blur-3xl" />
 			</div>
 
 			<div className="relative space-y-6">
@@ -251,30 +301,52 @@ const VoiceInputController: React.FC<VoiceInputControllerProps> = ({
 					</div>
 				</div>
 
-				<div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)]">
-					<div className="rounded-[1.75rem] border border-stone-200/70 bg-white/65 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur">
-						<div className="flex flex-col items-center gap-4 text-center">
-							<div className="relative flex h-48 w-48 items-center justify-center">
-								<span
-									className={cn(
-										"absolute inset-0 rounded-full border border-white/70 bg-white/45 backdrop-blur transition-all duration-500",
-										(isRecording || isConnecting || isAgentSpeaking) &&
-											"scale-105 shadow-[0_0_0_12px_rgba(255,255,255,0.28)]",
-									)}
-								/>
-								{(isRecording || isConnecting || isAgentSpeaking) && (
-									<>
-										<span className="absolute inset-3 rounded-full border border-white/60 animate-ping" />
-										<span className="absolute inset-[-0.75rem] rounded-full border border-white/35 animate-pulse" />
-									</>
-								)}
+				<div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.85fr)]">
+					<div className="space-y-4">
+						<VoiceSpectrumDisplay
+							analyser={voiceVisualizer}
+							stage={stage}
+							isRecording={isRecording}
+							isVoiceActive={isVoiceActive}
+							isAgentSpeaking={isAgentSpeaking}
+							agentRequestedManual={agentRequestedManual}
+						/>
+
+						<div className="rounded-[1.55rem] border border-stone-200/70 bg-white/78 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] backdrop-blur">
+							<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+								<div className="space-y-2">
+									<div className="flex flex-wrap items-center gap-2">
+										<span className="rounded-full border border-stone-200/80 bg-stone-100/80 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-700">
+											{stageLabel}
+										</span>
+										{isAwaitingAgent && (
+											<span className="inline-flex items-center gap-1 rounded-full border border-orange-200/80 bg-orange-50/90 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-orange-700">
+												<Sparkles className="h-3 w-3" />
+												Reply pending
+											</span>
+										)}
+										{agentRequestedManual && isRecording && (
+											<span className="rounded-full border border-sky-200/80 bg-sky-50/90 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-sky-700">
+												Typing live
+											</span>
+										)}
+									</div>
+									<div>
+										<p className="text-sm font-semibold text-stone-900">
+											{controlCopy.title}
+										</p>
+										<p className="mt-1 text-sm leading-6 text-stone-600">
+											{controlCopy.body}
+										</p>
+									</div>
+								</div>
 
 								<button
 									type="button"
 									onClick={handleClick}
 									disabled={!canToggle}
 									className={cn(
-										"relative z-10 flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br text-white shadow-[0_24px_55px_-22px_rgba(15,23,42,0.65)] transition-all duration-300",
+										"relative shrink-0 rounded-full bg-gradient-to-br p-[0.4rem] text-white shadow-[0_24px_55px_-22px_rgba(15,23,42,0.65)] transition-all duration-300",
 										buttonTone,
 										canToggle
 											? "hover:scale-[1.03] active:scale-[0.98]"
@@ -282,144 +354,117 @@ const VoiceInputController: React.FC<VoiceInputControllerProps> = ({
 									)}
 									aria-label={buttonLabel}
 								>
-									{isConnecting || isStopping ? (
-										<LoaderCircle className="h-8 w-8 animate-spin" />
-									) : isRecording ? (
-										<Square className="h-7 w-7 fill-current" />
-									) : (
-										<Mic className="h-9 w-9" />
-									)}
+									<span className="flex h-20 w-20 items-center justify-center rounded-full border border-white/15 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.32),rgba(255,255,255,0.08)_54%,rgba(0,0,0,0.16))] backdrop-blur">
+										{isConnecting || isStopping ? (
+											<LoaderCircle className="h-8 w-8 animate-spin" />
+										) : isRecording ? (
+											<Square className="h-7 w-7 fill-current" />
+										) : (
+											<Mic className="h-8 w-8" />
+										)}
+									</span>
 								</button>
-							</div>
-
-							<div className="space-y-2">
-								<p className="text-sm font-medium text-stone-900">
-									{isConnecting
-										? "Connecting"
-										: isAgentSpeaking
-											? "Agent speaking"
-											: agentRequestedManual && isRecording
-												? "Voice and typing active"
-											: isVoiceActive
-												? "Speech detected"
-												: isRecording
-													? "Mic open"
-													: "Tap to speak"}
-								</p>
-								<p className="text-xs uppercase tracking-[0.24em] text-stone-500">
-									{isIdle
-										? "Standby"
-										: agentRequestedManual && isRecording
-											? "Hybrid"
-										: isRecording && !isVoiceActive && !isAgentSpeaking
-											? "Listening"
-											: isAgentSpeaking
-												? "Playback"
-												: "Live"}
-								</p>
 							</div>
 						</div>
 					</div>
 
-					<div className="space-y-3">
+					<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
 						<StatusTile
 							icon={Mic}
-							label="You"
+							label="Input"
 							value={
 								isVoiceActive
-									? "Speaking detected"
-									: agentRequestedManual && isRecording
-										? "Voice open while typing"
+									? "Speech detected"
 									: isRecording
-										? "Mic armed"
+										? "Mic open"
 										: "Waiting to start"
+							}
+							detail={
+								isVoiceActive
+									? "Upper spectrum lane is tracking the live microphone signal."
+									: isRecording
+										? "The mic path is armed and listening for your next phrase."
+										: "No capture graph is active."
 							}
 							active={isRecording}
 							tone="sky"
 						/>
-						<div className="rounded-2xl border border-stone-200/70 bg-white/70 px-4 py-3 backdrop-blur">
-							<div className="flex items-center justify-between gap-3">
-								<div>
-									<p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
-										User Activity
-									</p>
-									<p className="mt-1 text-sm font-medium text-stone-900">
-										{isVoiceActive
-											? "You are actively talking"
-											: agentRequestedManual && isRecording
-												? "Typing is open during the live session"
-											: isRecording
-												? "Listening for speech"
-												: "Voice input is idle"}
-									</p>
-								</div>
-								<ActivityMeter active={isVoiceActive} tone="sky" />
-							</div>
-						</div>
-
 						<StatusTile
 							icon={Bot}
-							label="Agent"
+							label="Response"
 							value={
 								isAgentSpeaking
-									? "Speaking back"
-									: isConnected
-										? "Standing by"
-										: "Offline"
+									? "Reply on air"
+									: isAwaitingAgent
+										? "Composing next turn"
+										: isConnected
+											? "Standing by"
+											: "Offline"
 							}
-							active={isConnected || isAgentSpeaking}
+							detail={
+								isAgentSpeaking
+									? "Lower spectrum lane is reading the playback output bus."
+									: isAwaitingAgent
+										? "The session has your last phrase and is preparing the answer."
+										: isConnected
+											? "No response audio is playing right now."
+											: "Playback will arm when the session connects."
+							}
+							active={isConnected || isAgentSpeaking || isAwaitingAgent}
 							tone="orange"
 						/>
-						<div className="rounded-2xl border border-stone-200/70 bg-white/70 px-4 py-3 backdrop-blur">
-							<div className="flex items-center justify-between gap-3">
-								<div>
-									<p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
-										Agent Activity
-									</p>
-									<p className="mt-1 text-sm font-medium text-stone-900">
-										{isAgentSpeaking
-											? "Audio reply is playing"
-											: isConnected
-												? "Ready to respond"
-												: "Waiting for connection"}
-									</p>
-								</div>
-								<ActivityMeter active={isAgentSpeaking} tone="orange" />
-							</div>
-						</div>
-
-						<div className="grid gap-3 sm:grid-cols-2">
-							<StatusTile
-								icon={AudioLines}
-								label="Link"
-								value={
-									hasError
-										? "Retry needed"
-										: isConnected
-											? "Connected"
-											: isConnecting
-												? "Connecting"
-												: "Disconnected"
-								}
-								active={isConnected || isConnecting}
-								tone={hasError ? "neutral" : "emerald"}
-							/>
-							<StatusTile
-								icon={PencilLine}
-								label="Manual"
-								value={
-									agentRequestedManual
-										? "Typing invited"
-										: isRecording
-											? "Available below"
-											: "Ready when needed"
-								}
-								active={agentRequestedManual}
-								tone="neutral"
-							/>
-						</div>
+						<StatusTile
+							icon={AudioLines}
+							label="Link"
+							value={
+								hasError
+									? "Retry needed"
+									: isConnected
+										? "Connected"
+										: isConnecting
+											? "Handshaking"
+											: "Disconnected"
+							}
+							detail={
+								hasError
+									? "The session hit an error before a stable voice channel was established."
+									: isConnected
+										? "Voice transport, mic path, and playback bus are all live."
+										: isConnecting
+											? "Opening the provider session and priming the audio graph."
+											: "The console is idle."
+							}
+							active={isConnected || isConnecting}
+							tone="emerald"
+						/>
+						<StatusTile
+							icon={PencilLine}
+							label="Manual"
+							value={
+								agentRequestedManual
+									? "Typing invited"
+									: isRecording
+										? "Available below"
+										: "Ready when needed"
+							}
+							detail={
+								agentRequestedManual
+									? "Manual typing is open without ending the live voice session."
+									: isRecording
+										? "The manual form stays available while voice remains active."
+										: "Manual search is always available as a fallback."
+							}
+							active={agentRequestedManual}
+							tone="neutral"
+						/>
 					</div>
 				</div>
+
+				{isIdle && (
+					<p className="text-center text-xs uppercase tracking-[0.26em] text-stone-500">
+						Standby
+					</p>
+				)}
 			</div>
 		</div>
 	);

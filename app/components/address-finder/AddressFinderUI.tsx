@@ -22,6 +22,7 @@ import { Card, CardContent } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
 import type { RuralConfirmationState } from "~/hooks/actions/types";
 import type { AutoCorrectionData } from "~/hooks/useAddressAutoSelection";
+import type { VoiceVisualizerSource } from "~/components/address-finder/voice-visualizer/types";
 import type { AddressSelectionEntry } from "~/stores/addressSelectionStore";
 import type { SearchHistoryEntry } from "~/stores/searchHistoryStore";
 import type { HistoryItem, LocationIntent, Suggestion } from "~/stores/types";
@@ -53,6 +54,7 @@ interface AddressFinderUIProps {
 		isVoiceActive: boolean;
 		isAgentSpeaking: boolean;
 		agentRequestedManual: boolean;
+		voiceVisualizer: VoiceVisualizerSource | null;
 		history: HistoryItem[];
 		searchHistory: SearchHistoryEntry[];
 		addressSelections: AddressSelectionEntry[];
@@ -111,6 +113,7 @@ export function AddressFinderUI({
 		isVoiceActive,
 		isAgentSpeaking,
 		agentRequestedManual,
+		voiceVisualizer,
 		history,
 		searchHistory,
 		addressSelections,
@@ -252,6 +255,7 @@ export function AddressFinderUI({
 						isVoiceActive={isVoiceActive}
 						isAgentSpeaking={isAgentSpeaking}
 						agentRequestedManual={agentRequestedManual}
+						voiceVisualizer={voiceVisualizer}
 						startRecording={handleStartRecording}
 						stopRecording={handleStopRecording}
 					/>

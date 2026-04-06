@@ -154,8 +154,11 @@ class FakeAudioBufferSourceNode {
 	onended: (() => void) | null = null;
 	startCalls = 0;
 	stopCalls = 0;
+	connectedTarget: unknown = null;
 
-	connect(): void {}
+	connect(target?: unknown): void {
+		this.connectedTarget = target ?? null;
+	}
 
 	disconnect(): void {}
 
@@ -168,8 +171,46 @@ class FakeAudioBufferSourceNode {
 	}
 }
 
+class FakeAnalyserNode {
+	fftSize = 256;
+	smoothingTimeConstant = 0;
+	minDecibels = 0;
+	maxDecibels = 0;
+	mockData = new Uint8Array(this.frequencyBinCount);
+
+	get frequencyBinCount() {
+		return this.fftSize / 2;
+	}
+
+	connect(): void {}
+
+	disconnect(): void {}
+
+	setMockData(values: number[]) {
+		this.mockData = new Uint8Array(this.frequencyBinCount);
+		this.mockData.set(values.slice(0, this.frequencyBinCount));
+	}
+
+	getByteFrequencyData(target: Uint8Array) {
+		target.fill(0);
+		target.set(this.mockData.slice(0, target.length));
+	}
+}
+
+class FakeGainNode {
+	connectedTarget: unknown = null;
+
+	connect(target?: unknown): void {
+		this.connectedTarget = target ?? null;
+	}
+
+	disconnect(): void {}
+}
+
 class FakeAudioContext {
 	static lastSource: FakeAudioBufferSourceNode | null = null;
+	static lastAnalyser: FakeAnalyserNode | null = null;
+	static closeCalls = 0;
 	state: AudioContextState = "running";
 	currentTime = 0;
 	destination = {} as AudioDestinationNode;
@@ -192,9 +233,22 @@ class FakeAudioContext {
 		return source as unknown as AudioBufferSourceNode;
 	}
 
+	createAnalyser(): AnalyserNode {
+		const analyser = new FakeAnalyserNode();
+		FakeAudioContext.lastAnalyser = analyser;
+		return analyser as unknown as AnalyserNode;
+	}
+
+	createGain(): GainNode {
+		return new FakeGainNode() as unknown as GainNode;
+	}
+
 	async resume(): Promise<void> {}
 
-	async close(): Promise<void> {}
+	async close(): Promise<void> {
+		this.state = "closed";
+		FakeAudioContext.closeCalls += 1;
+	}
 }
 
 test("shared intent classifier matches the Cartesia parity fixture", () => {
@@ -571,5 +625,56 @@ test("AudioPlayer reports playback state changes when audio starts and ends", as
 		assert.deepEqual(playbackStates, [true, false]);
 	} finally {
 		globalThis.AudioContext = originalAudioContext;
+	}
+});
+
+test("AudioPlayer exposes live analyser data from the playback bus", async () => {
+	const originalAudioContext = globalThis.AudioContext;
+	globalThis.AudioContext =
+		FakeAudioContext as unknown as typeof globalThis.AudioContext;
+
+	try {
+		const player = new AudioPlayer();
+		await player.init();
+
+		const analyser = FakeAudioContext.lastAnalyser;
+		assert.ok(analyser);
+		analyser.setMockData([16, 96, 160, 224]);
+
+		const frequencyData = player.getByteFrequencyData();
+		assert.equal(frequencyData[0], 16);
+		assert.equal(frequencyData[1], 96);
+		assert.equal(frequencyData[2], 160);
+		assert.equal(frequencyData[3], 224);
+		const expectedVolume =
+			frequencyData.reduce((total, value) => total + value, 0) /
+			frequencyData.length /
+			255;
+		assert.equal(player.getVolume(), expectedVolume);
+	} finally {
+		globalThis.AudioContext = originalAudioContext;
+		FakeAudioContext.lastAnalyser = null;
+	}
+});
+
+test("AudioPlayer.destroy closes the output bus and clears analyser access", async () => {
+	const originalAudioContext = globalThis.AudioContext;
+	globalThis.AudioContext =
+		FakeAudioContext as unknown as typeof globalThis.AudioContext;
+	FakeAudioContext.closeCalls = 0;
+
+	try {
+		const player = new AudioPlayer();
+		await player.init();
+		assert.ok(FakeAudioContext.lastAnalyser);
+
+		await player.destroy();
+
+		assert.equal(FakeAudioContext.closeCalls, 1);
+		assert.equal(player.getByteFrequencyData().length, 0);
+		assert.equal(player.getVolume(), 0);
+	} finally {
+		globalThis.AudioContext = originalAudioContext;
+		FakeAudioContext.lastAnalyser = null;
 	}
 });

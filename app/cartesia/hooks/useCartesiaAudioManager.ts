@@ -18,6 +18,7 @@ const BUFFER_SIZE = 4096;
 const MIC_ACTIVITY_ACTIVATION_THRESHOLD = 0.024;
 const MIC_ACTIVITY_DEACTIVATION_THRESHOLD = 0.015;
 const MIC_ACTIVITY_HOLD_MS = 320;
+const EMPTY_FREQUENCY_DATA = new Uint8Array(new ArrayBuffer(0));
 
 interface UseCartesiaAudioManagerOptions {
 	sendMediaInput: (base64Data: string) => void;
@@ -29,6 +30,10 @@ interface UseCartesiaAudioManagerReturn {
 	playAudioChunk: (base64Data: string) => void;
 	flushAudio: () => void;
 	destroyAudio: () => Promise<void>;
+	getInputByteFrequencyData: () => Uint8Array;
+	getOutputByteFrequencyData: () => Uint8Array;
+	getInputLevel: () => number;
+	getOutputLevel: () => number;
 }
 
 function isAudioWorkletCaptureNode(
@@ -45,6 +50,10 @@ export function useCartesiaAudioManager({
 	const streamRef = useRef<MediaStream | null>(null);
 	const audioContextRef = useRef<AudioContext | null>(null);
 	const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+	const inputAnalyserRef = useRef<AnalyserNode | null>(null);
+	const inputFrequencyDataRef = useRef<Uint8Array<ArrayBuffer>>(
+		EMPTY_FREQUENCY_DATA,
+	);
 	const processorRef = useRef<AudioWorkletNode | ScriptProcessorNode | null>(
 		null,
 	);
@@ -113,6 +122,12 @@ export function useCartesiaAudioManager({
 			sourceRef.current = null;
 		}
 
+		if (inputAnalyserRef.current) {
+			inputAnalyserRef.current.disconnect();
+			inputAnalyserRef.current = null;
+		}
+		inputFrequencyDataRef.current = EMPTY_FREQUENCY_DATA;
+
 		const processor = processorRef.current;
 		if (processor) {
 			if (isAudioWorkletCaptureNode(processor)) {
@@ -130,6 +145,44 @@ export function useCartesiaAudioManager({
 			audioContextRef.current = null;
 		}
 	}, [clearVoiceInactiveTimeout]);
+
+	const getInputByteFrequencyData = useCallback(() => {
+		const analyser = inputAnalyserRef.current;
+		if (!analyser) {
+			return EMPTY_FREQUENCY_DATA;
+		}
+
+		if (inputFrequencyDataRef.current.length !== analyser.frequencyBinCount) {
+			inputFrequencyDataRef.current = new Uint8Array(
+				new ArrayBuffer(analyser.frequencyBinCount),
+			);
+		}
+
+		analyser.getByteFrequencyData(inputFrequencyDataRef.current);
+		return inputFrequencyDataRef.current;
+	}, []);
+
+	const getOutputByteFrequencyData = useCallback(() => {
+		return playerRef.current?.getByteFrequencyData() ?? EMPTY_FREQUENCY_DATA;
+	}, []);
+
+	const getInputLevel = useCallback(() => {
+		const frequencyData = getInputByteFrequencyData();
+		if (frequencyData.length === 0) {
+			return 0;
+		}
+
+		let total = 0;
+		for (let index = 0; index < frequencyData.length; index += 1) {
+			total += frequencyData[index] ?? 0;
+		}
+
+		return total / frequencyData.length / 255;
+	}, [getInputByteFrequencyData]);
+
+	const getOutputLevel = useCallback(() => {
+		return playerRef.current?.getVolume() ?? 0;
+	}, []);
 
 	const ensurePlayerReady = useCallback(async (): Promise<AudioPlayer> => {
 		if (!playerRef.current) {
@@ -174,6 +227,15 @@ export function useCartesiaAudioManager({
 
 			const source = audioContext.createMediaStreamSource(stream);
 			sourceRef.current = source;
+			const analyser = audioContext.createAnalyser();
+			analyser.fftSize = 256;
+			analyser.smoothingTimeConstant = 0.78;
+			analyser.minDecibels = -90;
+			analyser.maxDecibels = -18;
+			inputAnalyserRef.current = analyser;
+			inputFrequencyDataRef.current = new Uint8Array(
+				new ArrayBuffer(analyser.frequencyBinCount),
+			);
 
 			if (
 				audioContext.audioWorklet &&
@@ -201,7 +263,8 @@ export function useCartesiaAudioManager({
 					console.error("[CartesiaAudio] AudioWorklet processor error:", event);
 				};
 				processorRef.current = processor;
-				source.connect(processor);
+				source.connect(analyser);
+				analyser.connect(processor);
 				processor.connect(audioContext.destination);
 			} else {
 				const processor = audioContext.createScriptProcessor(
@@ -215,7 +278,8 @@ export function useCartesiaAudioManager({
 					sendMediaInput(encodeAudioForWs(inputData));
 				};
 				processorRef.current = processor;
-				source.connect(processor);
+				source.connect(analyser);
+				analyser.connect(processor);
 				processor.connect(audioContext.destination);
 			}
 
@@ -286,5 +350,9 @@ export function useCartesiaAudioManager({
 		playAudioChunk,
 		flushAudio,
 		destroyAudio,
+		getInputByteFrequencyData,
+		getOutputByteFrequencyData,
+		getInputLevel,
+		getOutputLevel,
 	};
 }

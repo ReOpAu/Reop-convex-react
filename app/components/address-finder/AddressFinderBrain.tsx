@@ -1,6 +1,7 @@
 import { ConversationProvider } from "@elevenlabs/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { VoiceVisualizerSource } from "~/components/address-finder/voice-visualizer/types";
 import { useAgentSync } from "~/elevenlabs/hooks/useAgentSync";
 import type { RuralConfirmationState } from "~/hooks/actions/types";
 import { useActionHandler } from "~/hooks/useActionHandler";
@@ -62,6 +63,7 @@ export interface AddressFinderBrainHandlers {
 		isVoiceActive: boolean;
 		isAgentSpeaking: boolean;
 		agentRequestedManual: boolean;
+		voiceVisualizer: VoiceVisualizerSource | null;
 		history: HistoryItem[];
 		searchHistory: SearchHistoryEntry[];
 		addressSelections: AddressSelectionEntry[];
@@ -204,6 +206,7 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 		handleStartRecording: startConversationRecording,
 		handleStopRecording,
 		handleRequestAgentState,
+		voiceVisualizer,
 	} = useConversationLifecycle({
 		getSessionToken,
 		clearSessionToken,
@@ -425,6 +428,7 @@ function AddressFinderBrainContent({ children }: AddressFinderBrainProps) {
 			isVoiceActive,
 			isAgentSpeaking,
 			agentRequestedManual,
+			voiceVisualizer,
 			history,
 			searchHistory,
 			addressSelections,
