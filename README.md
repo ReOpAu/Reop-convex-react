@@ -48,7 +48,7 @@ A modern, production-ready SaaS starter template for building full-stack React a
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 20.19+ (Node 22.22.2 is pinned for local development)
 - Clerk account for authentication
 - Convex account for database
 - Polar.sh account for subscriptions
