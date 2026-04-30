@@ -22,8 +22,8 @@ export function useListings({
 	// Convex query expects filters as args
 	const result = useQuery(api.listings.listListings, {
 		listingType: listingType === "all" ? undefined : listingType,
-		state: state || undefined,
-		suburb: suburb || undefined,
+		state: state === "all" ? undefined : state,
+		suburb: suburb === "all" ? undefined : suburb,
 		page,
 		pageSize,
 	});

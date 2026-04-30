@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import {
 	createListingValidator,
 	updateListingValidator,
@@ -461,5 +461,50 @@ export const getStateListingStats = query({
 			sellerListings: stateListings.filter((l) => l.listingType === "seller")
 				.length,
 		};
+	},
+});
+
+async function getActiveListings(ctx: QueryCtx) {
+	const listings = await ctx.db.query("listings").collect();
+	return listings.filter((listing) => listing.isActive === true);
+}
+
+// Get available suburbs for a given state
+export const getSuburbsByState = query({
+	args: { state: v.string() },
+	handler: async (ctx, { state }) => {
+		if (!state || state.trim().length === 0) {
+			throw new Error("State parameter is required");
+		}
+
+		const normalizedState = state.trim().toLowerCase();
+		const listings = await getActiveListings(ctx);
+		const suburbs = [
+			...new Set(
+				listings
+					.filter((listing) => listing.state.toLowerCase() === normalizedState)
+					.map((listing) => listing.suburb)
+					.filter(Boolean),
+			),
+		].sort();
+
+		return suburbs;
+	},
+});
+
+// Get available states that have active listings
+export const getAvailableStates = query({
+	args: {},
+	handler: async (ctx) => {
+		const listings = await getActiveListings(ctx);
+		const states = [
+			...new Set(
+				listings
+					.map((listing) => listing.state)
+					.filter(Boolean),
+			),
+		].sort();
+
+		return states;
 	},
 });

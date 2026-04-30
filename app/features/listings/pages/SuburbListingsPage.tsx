@@ -80,13 +80,7 @@ const SuburbListingsPage: React.FC = () => {
 				</div>
 
 				{/* Listings Display */}
-				<ListingsDisplay
-					initialFilters={{
-						state: state || "",
-						listingType: listingType || "all",
-						suburb: suburb || "",
-					}}
-				/>
+				<ListingsDisplay />
 			</div>
 		</div>
 	);
