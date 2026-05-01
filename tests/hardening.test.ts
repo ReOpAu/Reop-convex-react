@@ -3,12 +3,15 @@ import { test } from "node:test";
 import {
 	clearAllListings,
 	getAllListingsDebug,
+	getListing,
 	getListingForEdit,
 	isListingSaved,
 	listListingsAdmin,
 	listMyListings,
 	saveListing,
 } from "../convex/listings";
+import { findMatches, getMatchDetails } from "../convex/matches";
+import { toPublicListing } from "../convex/listingProjections";
 import {
 	checkUserSubscriptionStatus,
 	createCustomerPortalUrl,
@@ -85,6 +88,41 @@ function createMutationCtx(db: MockDb, identity: IdentityLike | null) {
 		runMutation: async () => {
 			throw new Error("Nested runMutation not implemented in tests");
 		},
+	};
+}
+
+function createListingFixture(overrides: Record<string, unknown> = {}) {
+	return {
+		userId: "users:owner",
+		listingType: "seller",
+		suburb: "Richmond",
+		state: "VIC",
+		postcode: "3121",
+		address: "10 Privacy Street",
+		latitude: -37.823,
+		longitude: 144.998,
+		geohash: "r1r0fs",
+		buildingType: "House",
+		bedrooms: 3,
+		bathrooms: 2,
+		parking: 1,
+		priceMin: 1_000_000,
+		priceMax: 1_200_000,
+		features: ["Pool", "StudyRoom"],
+		buyerType: "street",
+		searchRadius: 5,
+		sellerType: "sale",
+		headline: "Quiet listing",
+		description: "A listing with sensitive owner fields.",
+		images: ["https://example.com/listing.jpg"],
+		contactEmail: "owner@example.com",
+		contactPhone: "0400000000",
+		isActive: true,
+		isPremium: true,
+		sample: false,
+		createdAt: 1_710_000_000_000,
+		updatedAt: 1_710_000_001_000,
+		...overrides,
 	};
 }
 
@@ -265,6 +303,140 @@ test("listing reads stay safe before a users row exists", async () => {
 	);
 
 	assert.equal(editResult, null);
+});
+
+test("public listing projection omits exact location contact and user fields", () => {
+	const listing = {
+		_id: "listings:projection",
+		_creationTime: 1_710_000_000_000,
+		...createListingFixture(),
+	};
+
+	const projected = toPublicListing(listing as any);
+
+	assert.equal(projected.hasExactLocation, false);
+	for (const privateField of [
+		"userId",
+		"address",
+		"latitude",
+		"longitude",
+		"geohash",
+		"contactEmail",
+		"contactPhone",
+	]) {
+		assert.equal(privateField in projected, false, `${privateField} leaked`);
+	}
+
+	assert.deepEqual(projected, {
+		_id: listing._id,
+		_creationTime: listing._creationTime,
+		listingType: listing.listingType,
+		suburb: listing.suburb,
+		state: listing.state,
+		postcode: listing.postcode,
+		buildingType: listing.buildingType,
+		bedrooms: listing.bedrooms,
+		bathrooms: listing.bathrooms,
+		parking: listing.parking,
+		priceMin: listing.priceMin,
+		priceMax: listing.priceMax,
+		features: listing.features,
+		buyerType: listing.buyerType,
+		searchRadius: listing.searchRadius,
+		sellerType: listing.sellerType,
+		headline: listing.headline,
+		description: listing.description,
+		images: listing.images,
+		isActive: listing.isActive,
+		isPremium: listing.isPremium,
+		sample: listing.sample,
+		createdAt: listing.createdAt,
+		updatedAt: listing.updatedAt,
+		hasExactLocation: false,
+	});
+});
+
+test("listing and match reads share the public listing projection", async () => {
+	const db = new MockDb();
+	const originalId = db.insert("listings", createListingFixture());
+	const matchedId = db.insert(
+		"listings",
+		createListingFixture({
+			userId: "users:buyer",
+			listingType: "buyer",
+			headline: "Matching buyer",
+			contactEmail: "buyer@example.com",
+			contactPhone: "0499999999",
+		}),
+	);
+
+	const getListingHandler = getHandler<
+		(ctx: { db: MockDb }, args: { id: string }) => Promise<any>
+	>(getListing);
+	const getMatchDetailsHandler = getHandler<
+		(
+			ctx: { db: MockDb },
+			args: {
+				originalListingId: string;
+				matchedListingId: string;
+				includeScoreBreakdown?: boolean;
+			},
+		) => Promise<any>
+	>(getMatchDetails);
+
+	const listing = await db.get(originalId);
+	const publicListing = await getListingHandler({ db }, { id: originalId });
+	const matchDetails = await getMatchDetailsHandler(
+		{ db },
+		{ originalListingId: originalId, matchedListingId: matchedId },
+	);
+
+	assert.deepEqual(publicListing, toPublicListing(listing as any));
+	assert.deepEqual(matchDetails.originalListing, publicListing);
+	assert.deepEqual(
+		matchDetails.matchedListing,
+		toPublicListing((await db.get(matchedId)) as any),
+	);
+});
+
+test("match results use the public listing projection", async () => {
+	const db = new MockDb();
+	const originalId = db.insert("listings", createListingFixture());
+	const candidateId = db.insert(
+		"listings",
+		createListingFixture({
+			userId: "users:buyer",
+			listingType: "buyer",
+			headline: "Projected buyer match",
+			contactEmail: "buyer@example.com",
+			contactPhone: "0499999999",
+		}),
+	);
+
+	const findMatchesHandler = getHandler<
+		(ctx: { db: MockDb }, args: { listingId: string; options?: Record<string, unknown> }) => Promise<any>
+	>(findMatches);
+
+	const result = await findMatchesHandler({ db }, { listingId: originalId });
+	const candidate = await db.get(candidateId);
+
+	assert.equal(result.matches.length, 1);
+	assert.deepEqual(result.matches[0].listing, toPublicListing(candidate as any));
+	for (const privateField of [
+		"userId",
+		"address",
+		"latitude",
+		"longitude",
+		"geohash",
+		"contactEmail",
+		"contactPhone",
+	]) {
+		assert.equal(
+			privateField in result.matches[0].listing,
+			false,
+			`${privateField} leaked through match result`,
+		);
+	}
 });
 
 test("subscription reads fall back to authenticated identifiers before bootstrap", async () => {
